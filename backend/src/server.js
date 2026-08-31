@@ -9,7 +9,17 @@ import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-dotenv.config();
+import fs from 'fs';
+import path from 'path';
+
+// Load .env or .env.example
+if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
+  dotenv.config({ path: '.env' });
+} else if (fs.existsSync(path.resolve(process.cwd(), '.env.example'))) {
+  dotenv.config({ path: '.env.example' });
+} else {
+  dotenv.config();
+}
 
 const app = express();
 
