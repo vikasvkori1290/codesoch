@@ -153,7 +153,7 @@ export default function QuizGenerator({ onGoHome }) {
 
             {/* Main Quiz Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Left Column: Problem & Code Snippet */}
+              {/* Left Column: Problem Description */}
               <div className="lg:col-span-5 space-y-6">
                 {/* Problem Description */}
                 <div className="bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 space-y-3">
@@ -164,22 +164,6 @@ export default function QuizGenerator({ onGoHome }) {
                     {generatedQuiz.description}
                   </p>
                 </div>
-
-                {/* Code Snippet */}
-                {generatedQuiz.codeSnippet && (
-                  <div className="bg-[#0c0d12] border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="bg-[#12131a] px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-                      <span className="text-xs font-mono text-amber-400 font-semibold flex items-center gap-2">
-                        <Code2 className="w-4 h-4" />
-                        <span>Code Reference</span>
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-500">Python3</span>
-                    </div>
-                    <pre className="p-5 text-xs font-mono text-amber-200/90 leading-relaxed overflow-x-auto bg-[#08090d]">
-                      <code>{generatedQuiz.codeSnippet}</code>
-                    </pre>
-                  </div>
-                )}
               </div>
 
               {/* Right Column: Socratic Question & Choice Cards */}
