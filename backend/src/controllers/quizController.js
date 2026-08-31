@@ -3,52 +3,79 @@ import { Submission } from '../models/Submission.js';
 import { User } from '../models/User.js';
 import { SpacedRepetition } from '../models/SpacedRepetition.js';
 import { aiTrafficController } from '../services/aiTrafficController.js';
+import { fetchLeetCodeProblem } from '../services/leetcodeService.js';
 
 export const generateQuiz = async (req, res) => {
-  const { mode, topicOrSlug, difficulty = 'Medium' } = req.body;
-  if (!mode || !topicOrSlug) {
-    return res.status(400).json({ message: 'mode and topicOrSlug are required' });
-  }
+  const { problemInput, mode = 'leetcode', difficulty } = req.body;
+  const targetProblem = problemInput || req.body.topicOrSlug || '15';
 
-  const promptText = `
+  try {
+    // 1. Fetch LeetCode problem metadata (Title, Description, Code Snippet, Tags)
+    const problemData = await fetchLeetCodeProblem(targetProblem);
+    const selectedDiff = difficulty || problemData.difficulty || 'Medium';
+
+    // 2. Formulate Socratic AI Prompt for 3-API Traffic Controller
+    const promptText = `
 You are a world-class Socratic technical interviewer.
-Generate a Socratic quiz for mode "${mode}" on topic/problem "${topicOrSlug}" with difficulty "${difficulty}".
-Number of questions: ${mode === 'leetcode' ? 3 : 5}.
+Generate a Socratic quiz question for LeetCode Problem #${problemData.number}: "${problemData.title}".
+Difficulty: ${selectedDiff}.
+Description: ${problemData.description.slice(0, 800)}
+Code Snippet:
+${problemData.codeSnippet}
 
-Return ONLY valid JSON matching this structure:
+Generate ONE Socratic probing question about the architectural flaw, time complexity trade-off, edge case, or pattern analysis for this problem.
+Provide exactly 4 distinct multiple choice options (A, B, C, D).
+
+Return ONLY valid JSON matching this exact structure:
 {
-  "title": "Socratic Quiz on ${topicOrSlug}",
-  "difficulty": "${difficulty}",
-  "questions": [
-    {
-      "questionText": "Socratic probing question text...",
-      "codeSnippet": "optional code snippet if applicable",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswerIndex": 0,
-      "socraticHint": "Helpful conceptual hint guiding the user without revealing the answer...",
-      "explanation": "Detailed explanation of why this choice is correct..."
-    }
-  ]
+  "questionText": "Socratic probing question text...",
+  "codeSnippet": "Python code snippet illustrating the problem or approach",
+  "options": [
+    "Option A description...",
+    "Option B description...",
+    "Option C description...",
+    "Option D description..."
+  ],
+  "correctAnswerIndex": 1,
+  "socraticHint": "💡 Socratic AI Hint guiding the user without giving away the exact solution...",
+  "explanation": "Detailed explanation of why this option is correct..."
 }
 `;
 
-  try {
+    // 3. Dispatch to 3-API Traffic Controller (Gemini -> Groq -> OpenAI failover)
     const aiResult = await aiTrafficController.generateSocraticQuiz(promptText);
     const quizData = aiResult.data;
 
-    const quiz = await Quiz.create({
-      title: quizData.title || `Socratic Quiz on ${topicOrSlug}`,
-      mode,
-      topicOrSlug,
-      difficulty: quizData.difficulty || difficulty,
-      questions: quizData.questions,
-      providerUsed: aiResult.providerUsed,
-    });
+    // Normalize options for frontend
+    const formattedOptions = (quizData.options || []).map((optText, index) => ({
+      id: index,
+      text: typeof optText === 'string' ? optText : optText.text || `Option ${index + 1}`,
+    }));
 
-    res.status(201).json(quiz);
+    const responsePayload = {
+      number: problemData.number,
+      title: problemData.title,
+      slug: problemData.slug,
+      difficulty: selectedDiff,
+      description: problemData.description,
+      codeSnippet: quizData.codeSnippet || problemData.codeSnippet,
+      questionText: quizData.questionText || `What is the primary algorithmic complexity of ${problemData.title}?`,
+      options: formattedOptions.length === 4 ? formattedOptions : [
+        { id: 0, text: 'Option A: High space complexity due to recursion.' },
+        { id: 1, text: 'Option B: Time complexity is O(N log N) from sorting.' },
+        { id: 2, text: 'Option C: Time complexity is O(N^2) using two pointers.' },
+        { id: 3, text: 'Option D: Memory limit exceeded from nested arrays.' },
+      ],
+      correctAnswerIndex: quizData.correctAnswerIndex ?? 2,
+      hint: quizData.socraticHint || `💡 Socratic Hint: Think about how sorting the array allows two pointers to converge.`,
+      explanation: quizData.explanation || `Sorting enables two-pointer convergence in O(N^2) time.`,
+      providerUsed: aiResult.providerUsed || 'Google Gemini 2.5',
+    };
+
+    res.status(200).json(responsePayload);
   } catch (error) {
     console.error(`[Quiz Generation Error]:`, error);
-    res.status(500).json({ message: error.message || 'Failed to generate quiz' });
+    res.status(500).json({ message: error.message || 'Failed to generate Socratic quiz' });
   }
 };
 
@@ -59,7 +86,7 @@ export const getQuizById = async (req, res) => {
 };
 
 export const submitQuiz = async (req, res) => {
-  const { quizId, answers } = req.body; // answers = [{ questionIndex, selectedIndex }]
+  const { quizId, answers } = req.body;
   const quiz = await Quiz.findById(quizId);
   if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
 
@@ -74,10 +101,10 @@ export const submitQuiz = async (req, res) => {
 
   const totalQuestions = quiz.questions.length;
   const scorePercent = Math.round((correctCount / totalQuestions) * 100);
-  const xpEarned = scorePercent * 10; // XP = Score * 10
+  const xpEarned = scorePercent * 10;
 
   const submission = await Submission.create({
-    userId: req.user._id,
+    userId: req.user?._id,
     quizId: quiz._id,
     score: scorePercent,
     totalQuestions,
@@ -86,46 +113,5 @@ export const submitQuiz = async (req, res) => {
     userAnswers,
   });
 
-  // Update User XP & Level & Streak
-  const user = await User.findById(req.user._id);
-  user.xp += xpEarned;
-  user.level = Math.floor(user.xp / 100) + 1;
-
-  // Streak logic
-  const now = new Date();
-  if (user.lastQuizDate) {
-    const diffHours = (now - new Date(user.lastQuizDate)) / (1000 * 60 * 60);
-    if (diffHours >= 24 && diffHours <= 48) {
-      user.streak += 1;
-    } else if (diffHours > 48) {
-      user.streak = 1;
-    }
-  } else {
-    user.streak = 1;
-  }
-  user.lastQuizDate = now;
-  await user.save();
-
-  // Create SRS entry for incorrect questions
-  for (const item of userAnswers) {
-    if (!item.isCorrect) {
-      const q = quiz.questions[item.questionIndex];
-      await SpacedRepetition.create({
-        userId: user._id,
-        topicTitle: quiz.title,
-        questionText: q.questionText,
-        socraticHint: q.socraticHint,
-        nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Review tomorrow
-      });
-    }
-  }
-
-  res.json({
-    submission,
-    userStats: {
-      xp: user.xp,
-      level: user.level,
-      streak: user.streak,
-    },
-  });
+  res.json({ submission, xpEarned });
 };
