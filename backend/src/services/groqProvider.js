@@ -10,7 +10,7 @@ export async function callGroq(promptText) {
       { role: 'system', content: 'You are a Socratic technical interview AI generator. Respond exclusively in valid JSON.' },
       { role: 'user', content: promptText },
     ],
-    model: 'llama-3.1-8b-instant',
+    model: 'llama3-8b-8192',
     response_format: { type: 'json_object' },
   });
 

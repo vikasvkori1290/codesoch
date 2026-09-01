@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, Award, AlertTriangle, Sparkles, LogOut, Edit3, X } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, AlertTriangle, Sparkles, LogOut, Edit3, X, History, Calendar, CheckSquare } from 'lucide-react';
 import axios from 'axios';
 import { getCurrentUser, logoutUser, initAuth } from '../services/auth';
 
@@ -26,6 +25,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
     rank: '#1',
   });
 
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -42,6 +42,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
       const response = await axios.get('http://localhost:5000/api/auth/profile');
       const u = response.data.user || response.data;
       const s = response.data.stats || {};
+      const h = response.data.history || [];
 
       setFormData({
         firstName: u.firstName || '',
@@ -63,6 +64,8 @@ export default function ProfilePage({ onGoHome, onLogout }) {
         dueSrsCount: s.dueSrsCount || 0,
         rank: s.rank || '#1',
       });
+
+      setHistory(h);
     } catch (err) {
       console.warn('[Profile]: Backend unauthenticated or error. Falling back to local storage profile.', err);
       const cached = getCurrentUser();
@@ -92,19 +95,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
     }
   };
 
-  // Calculate completion percentage
-  const totalFields = 6;
-  const filledFields = [
-    formData.firstName,
-    formData.lastName,
-    formData.username,
-    formData.email,
-    formData.mobile,
-    formData.leetcodeUrl,
-  ].filter(Boolean).length;
-  
-  const completionPercent = Math.round((filledFields / totalFields) * 100);
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -127,16 +117,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
         avgAccuracy: s.avgAccuracy !== undefined ? s.avgAccuracy : prev.avgAccuracy,
         rank: s.rank || prev.rank,
       }));
-
-      // Trigger celebration confetti if profile becomes 100% complete
-      if (completionPercent === 100 && !userStats.isProfileComplete) {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#F59E0B', '#10B981', '#6366F1'],
-        });
-      }
     } catch (err) {
       console.warn('[Profile]: Failed to update profile on backend server.', err);
     }
@@ -168,12 +148,23 @@ export default function ProfilePage({ onGoHome, onLogout }) {
     onGoHome();
   };
 
-  // Generate initials for avatar
   const initials = `${(formData.firstName || 'C').charAt(0)}${(formData.lastName || 'S').charAt(0)}`.toUpperCase();
 
+  const formatDate = (isoString) => {
+    if (!isoString) return 'Recent';
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#060608] text-white font-sans selection:bg-amber-500 selection:text-black relative">
-      {/* Background Grid Pattern */}
+    <div className="min-h-screen bg-[#060608] text-white font-sans selection:bg-amber-500 selection:text-black relative overflow-x-hidden">
+      {/* Subtle Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#17140b_1px,transparent_1px),linear-gradient(to_bottom,#17140b_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
       {/* Subtle Aesthetic Dynamic Island Navbar */}
@@ -209,32 +200,31 @@ export default function ProfilePage({ onGoHome, onLogout }) {
         </div>
       </header>
 
-      {/* Main Profile Container */}
-      <main className="max-w-4xl mx-auto px-8 pt-28 pb-10 space-y-8 relative z-10">
+      {/* Main Minimalist Profile Container */}
+      <main className="max-w-4xl mx-auto px-6 pt-28 pb-16 space-y-6 relative z-10">
         {/* Profile Header & Avatar Card */}
-        <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-8 shadow-[0_0_50px_rgba(245,158,11,0.08)] flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            {/* Custom Initial Avatar with Edit Overlay Icon */}
+        <div className="bg-[#0c0d12]/90 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-6 sm:p-8 shadow-[0_0_40px_rgba(245,158,11,0.08)] flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            {/* Custom Initial Avatar with Hover Edit Badge */}
             <div
               onClick={() => setShowEditModal(true)}
-              className="relative w-20 h-20 rounded-2xl bg-linear-to-br from-amber-500 to-amber-700 p-0.5 shadow-[0_0_25px_rgba(245,158,11,0.3)] shrink-0 cursor-pointer group"
+              className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-linear-to-br from-amber-500 to-amber-700 p-0.5 shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0 cursor-pointer group"
               title="Click to Edit Profile"
             >
-              <div className="w-full h-full bg-[#12131a] rounded-2xl flex items-center justify-center text-2xl font-black text-amber-400 group-hover:opacity-40 transition-opacity">
+              <div className="w-full h-full bg-[#12131a] rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black text-amber-400 group-hover:opacity-30 transition-opacity">
                 {initials}
               </div>
 
-              {/* Hover Edit Overlay Icon */}
-              <div className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-amber-400 font-mono text-[10px] font-bold">
-                <Edit3 className="w-5 h-5 mb-0.5" />
+              <div className="absolute inset-0 rounded-2xl bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-amber-400 font-mono text-[10px] font-bold">
+                <Edit3 className="w-4 h-4 mb-0.5" />
                 <span>EDIT</span>
               </div>
             </div>
 
             {/* Name & Handle */}
-            <div>
+            <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-black text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   {formData.firstName || 'Developer'} {formData.lastName || ''}
                 </h1>
                 <button
@@ -246,12 +236,12 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                 </button>
               </div>
 
-              <p className="text-xs font-mono text-zinc-400 mt-1">
-                @{formData.username || 'user'} • <span className="text-amber-400 font-bold">Algorithm Architect</span>
+              <p className="text-xs font-mono text-zinc-400">
+                @{formData.username || 'user'} • <span className="text-amber-400 font-semibold">Algorithm Architect</span>
               </p>
 
-              {/* Gamification Badges */}
-              <div className="flex flex-wrap items-center gap-3 mt-3">
+              {/* Badges */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
                 <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
                   <Flame className="w-3.5 h-3.5 fill-amber-500" />
                   {userStats.streak} Day Streak
@@ -269,60 +259,110 @@ export default function ProfilePage({ onGoHome, onLogout }) {
           </div>
         </div>
 
-        {/* Gamification Incentive: +10 XP Completion Banner */}
-        <div className="bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-white">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Profile Completion Progress</span>
-            </div>
-            <span className="text-xs font-mono font-bold text-amber-400">
-              {completionPercent}% ({completionPercent === 100 ? '+10 XP Bonus Claimed 🎉' : '+10 XP Completion Bonus'})
-            </span>
-          </div>
-
-          <div className="w-full bg-[#181924] h-2.5 rounded-full overflow-hidden border border-zinc-800">
-            <div
-              className="bg-amber-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
-              style={{ width: `${completionPercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Real MongoDB Account Stats Overview Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
+        {/* Minimalist Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <div className="bg-[#0c0d12]/80 border border-zinc-800/80 rounded-xl p-4 text-center hover:border-amber-500/30 transition-all">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Quizzes Solved</span>
             <span className="text-2xl font-black text-white">{userStats.quizzesSolved}</span>
           </div>
-          <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
+          <div className="bg-[#0c0d12]/80 border border-zinc-800/80 rounded-xl p-4 text-center hover:border-amber-500/30 transition-all">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Avg Accuracy</span>
             <span className="text-2xl font-black text-emerald-400">{userStats.avgAccuracy}%</span>
           </div>
-          <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
+          <div className="bg-[#0c0d12]/80 border border-zinc-800/80 rounded-xl p-4 text-center hover:border-amber-500/30 transition-all">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">SRS Due Items</span>
             <span className="text-2xl font-black text-amber-400">{userStats.dueSrsCount}</span>
           </div>
-          <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
+          <div className="bg-[#0c0d12]/80 border border-zinc-800/80 rounded-xl p-4 text-center hover:border-amber-500/30 transition-all">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Current Rank</span>
             <span className="text-2xl font-black text-amber-400">{userStats.rank}</span>
           </div>
         </div>
 
+        {/* Quiz Submission History Section */}
+        <div className="bg-[#0c0d12]/90 border border-zinc-800 rounded-2xl p-6 sm:p-8 space-y-5 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <History className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Quiz Submission History</h3>
+                <p className="text-[11px] font-mono text-zinc-400">
+                  Tracked LeetCode problem sessions and Socratic performance
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-mono text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+              {history.length} {history.length === 1 ? 'Attempt' : 'Attempts'}
+            </span>
+          </div>
+
+          {/* History List */}
+          {history.length > 0 ? (
+            <div className="space-y-3">
+              {history.map((item, idx) => (
+                <div
+                  key={item._id || idx}
+                  className="bg-[#12131c]/70 border border-zinc-800/80 hover:border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+                        #{item.problemNumber || '15'}
+                      </span>
+                      <h4 className="text-sm font-bold text-white tracking-wide">
+                        {item.problemTitle || '3Sum'}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400 pt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-zinc-500" />
+                        {formatDate(item.date)}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1 text-zinc-300">
+                        <CheckSquare className="w-3 h-3 text-emerald-400" />
+                        {item.correctCount}/{item.totalQuestions || 5} Correct
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-lg">
+                      {item.score}% Accuracy
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-lg">
+                      +{item.xpEarned || 0} XP
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 space-y-3 bg-[#12131c]/30 rounded-xl border border-dashed border-zinc-800">
+              <Brain className="w-8 h-8 text-zinc-600 mx-auto" />
+              <p className="text-xs font-mono text-zinc-400">
+                No quiz submissions recorded yet. Complete a quiz to build your history!
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Danger Zone */}
-        <div className="bg-[#0c0d12] border border-rose-500/30 rounded-2xl p-8 space-y-4">
+        <div className="bg-[#0c0d12]/90 border border-rose-500/20 rounded-2xl p-6 sm:p-8 space-y-4">
           <div className="flex items-center gap-3 text-rose-400">
             <AlertTriangle className="w-5 h-5 fill-rose-500/20" />
             <h3 className="text-base font-bold text-white">Danger Zone</h3>
           </div>
           <p className="text-xs text-zinc-400 leading-relaxed font-normal">
-            Permanently delete your CodeSoch account, submission history, XP gamification stats, and Spaced Repetition decay queue. This action is non-reversible.
+            Permanently delete your CodeSoch account, submission history, and XP stats. This action is non-reversible.
           </p>
 
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               onClick={() => setShowDeleteModal(true)}
-              className="bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500 hover:text-white text-rose-400 text-xs font-mono font-bold px-5 py-3 rounded-xl flex items-center gap-2 transition-all"
+              className="bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500 hover:text-white text-rose-400 text-xs font-mono font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all"
             >
               <Trash2 className="w-4 h-4" />
               <span>Delete Account Permanently</span>
@@ -331,11 +371,10 @@ export default function ProfilePage({ onGoHome, onLogout }) {
         </div>
       </main>
 
-      {/* Edit Profile Modal (Opens when clicking profile avatar or Edit Profile button) */}
+      {/* Edit Profile Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-6 sm:p-8 max-w-xl w-full relative shadow-[0_0_50px_rgba(245,158,11,0.15)] animate-in fade-in zoom-in-95 duration-200 space-y-6">
-            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -357,10 +396,8 @@ export default function ProfilePage({ onGoHome, onLogout }) {
               </button>
             </div>
 
-            {/* Editable Form */}
             <form onSubmit={handleSave} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* First Name */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">First Name</label>
                   <input
@@ -373,7 +410,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                   />
                 </div>
 
-                {/* Last Name */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">Last Name</label>
                   <input
@@ -386,7 +422,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                   />
                 </div>
 
-                {/* Username */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">Username</label>
                   <input
@@ -399,7 +434,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                   />
                 </div>
 
-                {/* Email */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">Email Address</label>
                   <div className="relative">
@@ -415,7 +449,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                   </div>
                 </div>
 
-                {/* Mobile Number */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">Mobile Number</label>
                   <div className="relative">
@@ -431,7 +464,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                   </div>
                 </div>
 
-                {/* LeetCode Profile URL */}
                 <div className="space-y-1">
                   <label className="text-xs font-mono font-bold text-zinc-400">LeetCode Profile URL</label>
                   <div className="relative">
@@ -448,7 +480,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center justify-between pt-3 border-t border-zinc-900">
                 {saveSuccess ? (
                   <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
@@ -490,7 +521,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
               <h3 className="text-lg font-bold text-white">Confirm Account Deletion</h3>
             </div>
             <p className="text-xs text-zinc-300 leading-relaxed">
-              Are you sure you want to permanently purge your account data? All quiz records, XP stats, and spaced repetition schedules will be lost forever.
+              Are you sure you want to permanently purge your account data? All quiz records and XP stats will be lost forever.
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button

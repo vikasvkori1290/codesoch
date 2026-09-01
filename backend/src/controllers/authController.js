@@ -169,7 +169,7 @@ export const getProfile = async (req, res) => {
       const user = await User.findById(req.user._id).select('-password');
       if (!user) return res.status(404).json({ message: 'User not found' });
 
-      const submissions = await Submission.find({ userId: user._id });
+      const submissions = await Submission.find({ userId: user._id }).sort({ createdAt: -1 });
       const quizzesSolved = submissions.length;
       let totalScore = 0;
       submissions.forEach((s) => { totalScore += s.score || 0; });
@@ -184,6 +184,16 @@ export const getProfile = async (req, res) => {
       return res.json({
         user,
         stats: { quizzesSolved, avgAccuracy, rank: `#${rank}`, dueSrsCount },
+        history: submissions.map((s) => ({
+          _id: s._id,
+          problemNumber: s.problemNumber || '15',
+          problemTitle: s.problemTitle || '3Sum',
+          score: s.score,
+          correctCount: s.correctCount,
+          totalQuestions: s.totalQuestions || 5,
+          xpEarned: s.xpEarned,
+          date: s.createdAt,
+        })),
       });
     }
 
@@ -191,7 +201,7 @@ export const getProfile = async (req, res) => {
     const userObj = memoryUsers.get(String(req.user._id)) || Array.from(memoryUsers.values())[0];
     if (!userObj) return res.status(404).json({ message: 'User not found' });
 
-    const userSubs = memorySubmissions.filter((s) => s.userId === String(userObj._id));
+    const userSubs = memorySubmissions.filter((s) => s.userId === String(userObj._id)).reverse();
     const quizzesSolved = userSubs.length;
     let totalScore = 0;
     userSubs.forEach((s) => { totalScore += s.score || 0; });
@@ -213,6 +223,16 @@ export const getProfile = async (req, res) => {
         isProfileComplete: userObj.isProfileComplete,
       },
       stats: { quizzesSolved, avgAccuracy, rank: '#1', dueSrsCount: 0 },
+      history: userSubs.map((s, idx) => ({
+        _id: `mem_sub_${idx}`,
+        problemNumber: s.problemNumber || '15',
+        problemTitle: s.problemTitle || '3Sum',
+        score: s.score || 100,
+        correctCount: s.correctCount || 5,
+        totalQuestions: s.totalQuestions || 5,
+        xpEarned: s.xpEarned || 400,
+        date: s.createdAt || new Date().toISOString(),
+      })),
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || 'Failed to fetch profile' });

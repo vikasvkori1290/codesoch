@@ -1,7 +1,22 @@
-import React from 'react';
-import { User, Brain, Sparkles, UserPlus, ArrowRight, LogIn } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Brain, Sparkles, UserPlus, ArrowRight, LogIn, Zap } from 'lucide-react';
+import axios from 'axios';
 
 export default function LandingPage({ currentUser, onOpenAuthModal, onOpenQuiz, onOpenProfile }) {
+  const [activeProblem, setActiveProblem] = useState(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      axios.get('http://localhost:5000/api/quiz/active-problem')
+        .then((res) => {
+          if (res.data?.hasActiveProblem) {
+            setActiveProblem(res.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentUser]);
+
   return (
     <div className="min-h-screen bg-[#060608] text-white selection:bg-amber-500 selection:text-black relative font-sans overflow-x-hidden">
       {/* Background Image: public/bg.png (Scrolls with page) */}
@@ -72,11 +87,28 @@ export default function LandingPage({ currentUser, onOpenAuthModal, onOpenQuiz, 
             <span>Socratic Learning Engine</span>
           </div>
 
+          {/* Active Problem Detection Notification Badge */}
+          {activeProblem && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1 text-center animate-in fade-in zoom-in-95">
+              <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wide flex items-center justify-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-bounce" />
+                Active LeetCode Problem Sync
+              </span>
+              <p className="text-xs font-bold text-white font-mono">
+                Detected: <span className="text-amber-400 underline">{activeProblem.title}</span>
+              </p>
+            </div>
+          )}
+
           {/* Refined Compact Text */}
           {currentUser ? (
             <h1 className="text-lg sm:text-xl font-bold text-white leading-relaxed tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
               Welcome back, <span className="text-amber-400 font-extrabold">{currentUser.firstName}!</span> <br />
-              Ready to train your algorithmic thinking?
+              {activeProblem ? (
+                <span>Ready to generate a Socratic Quiz for <span className="text-amber-400 font-extrabold">{activeProblem.title}</span>?</span>
+              ) : (
+                <span>Ready to train your algorithmic thinking?</span>
+              )}
             </h1>
           ) : (
             <h1 className="text-lg sm:text-xl font-bold text-white leading-relaxed tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
@@ -94,7 +126,7 @@ export default function LandingPage({ currentUser, onOpenAuthModal, onOpenQuiz, 
                 className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-black font-mono uppercase py-3 px-7 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:scale-[1.04] active:scale-95 flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4 text-black fill-current" />
-                <span>Start Socratic Quiz</span>
+                <span>{activeProblem ? `Quiz for ${activeProblem.title}` : 'Start Socratic Quiz'}</span>
                 <ArrowRight className="w-4 h-4 text-black" />
               </button>
             ) : (

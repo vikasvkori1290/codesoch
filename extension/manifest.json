@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "CodeSoch LeetCode Click Sync",
+  "version": "1.0",
+  "description": "Instantly syncs the exact LeetCode problem you clicked to CodeSoch.",
+  "permissions": ["activeTab"],
+  "host_permissions": ["https://leetcode.com/problems/*", "http://localhost:5000/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

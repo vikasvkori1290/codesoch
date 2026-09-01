@@ -15,7 +15,7 @@ const LEETCODE_ID_MAP = {
   53: 'maximum-subarray',
   70: 'climbing-stairs',
   121: 'best-time-to-buy-and-sell-stock',
-  141: 'linked-list-cycle font-mono',
+  141: 'linked-list-cycle',
   200: 'number-of-islands',
   206: 'reverse-linked-list',
   226: 'invert-binary-tree',
@@ -63,12 +63,10 @@ export async function fetchLeetCodeProblem(inputQuery) {
 
     const question = response.data?.data?.question;
     if (question) {
-      // Clean HTML tags from content
       const cleanContent = question.content
         ? question.content.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim()
         : `LeetCode problem ${question.title}`;
 
-      // Extract Python3 snippet if available
       const pythonSnippet =
         question.codeSnippets?.find((s) => s.langSlug === 'python3' || s.langSlug === 'python')?.code ||
         `def solution():\n    # Implement solution for ${question.title}\n    pass`;
@@ -87,7 +85,6 @@ export async function fetchLeetCodeProblem(inputQuery) {
     console.warn(`[LeetCode Service]: GraphQL fetch failed for '${slug}'. Using AI fallback synthesis.`);
   }
 
-  // Fallback if GraphQL fails or for custom numbers
   const formattedTitle = slug
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -102,4 +99,51 @@ export async function fetchLeetCodeProblem(inputQuery) {
     codeSnippet: `def solution(nums):\n    # Optimized logic for ${formattedTitle || cleanInput}\n    pass`,
     tags: ['Algorithms'],
   };
+}
+
+export async function fetchRecentLeetCodeUserProblem(username) {
+  if (!username) return null;
+  const cleanUser = String(username)
+    .trim()
+    .toLowerCase()
+    .replace('https://leetcode.com/u/', '')
+    .replace('https://leetcode.com/', '')
+    .replace('/', '');
+
+  const graphqlQuery = {
+    query: `
+      query recentSubmissions($username: String!) {
+        recentSubmissionList(username: $username, limit: 1) {
+          title
+          titleSlug
+          timestamp
+          statusDisplay
+        }
+      }
+    `,
+    variables: { username: cleanUser },
+  };
+
+  try {
+    const response = await axios.post('https://leetcode.com/graphql', graphqlQuery, {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      timeout: 4000,
+    });
+
+    const recent = response.data?.data?.recentSubmissionList?.[0];
+    if (recent) {
+      return {
+        title: recent.title,
+        slug: recent.titleSlug,
+        timestamp: recent.timestamp,
+        statusDisplay: recent.statusDisplay,
+      };
+    }
+  } catch (err) {
+    console.warn(`[LeetCode Service]: Recent submissions fetch failed for '${cleanUser}'.`, err.message);
+  }
+  return null;
 }

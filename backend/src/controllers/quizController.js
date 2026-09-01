@@ -4,15 +4,17 @@ import { Submission } from '../models/Submission.js';
 import { User } from '../models/User.js';
 import { SpacedRepetition } from '../models/SpacedRepetition.js';
 import { aiTrafficController } from '../services/aiTrafficController.js';
-import { fetchLeetCodeProblem } from '../services/leetcodeService.js';
+import { fetchLeetCodeProblem, fetchRecentLeetCodeUserProblem } from '../services/leetcodeService.js';
 import { memoryUsers, memorySubmissions } from './authController.js';
+
+// Real-time active problem store (maps userId -> { title, slug, number, updatedAt })
+export const activeUserProblems = new Map();
 
 // Helper function to randomly shuffle options and update correctAnswerIndex
 function shuffleQuestionOptions(q) {
   const originalOptions = q.options || [];
   const origCorrectIdx = typeof q.correctAnswerIndex === 'number' ? q.correctAnswerIndex : Math.floor(Math.random() * 4);
   
-  // Format options with correct answer flag
   let opts = originalOptions.map((opt, i) => {
     const textVal = typeof opt === 'string' ? opt : opt.text || `Option ${i + 1}`;
     return {
@@ -21,20 +23,17 @@ function shuffleQuestionOptions(q) {
     };
   });
 
-  // Ensure exactly 4 options
   if (opts.length < 4) {
     while (opts.length < 4) {
       opts.push({ text: `Option ${opts.length + 1}: Alternative approach.`, isCorrect: false });
     }
   }
 
-  // Fisher-Yates Shuffle
   for (let i = opts.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [opts[i], opts[j]] = [opts[j], opts[i]];
   }
 
-  // Find new position of the correct answer
   let newCorrectIndex = opts.findIndex((o) => o.isCorrect);
   if (newCorrectIndex === -1) {
     newCorrectIndex = Math.floor(Math.random() * 4);
@@ -52,11 +51,9 @@ export const generateQuiz = async (req, res) => {
   const targetProblem = problemInput || req.body.topicOrSlug || '15';
 
   try {
-    // 1. Fetch LeetCode problem metadata
     const problemData = await fetchLeetCodeProblem(targetProblem);
     const selectedDiff = difficulty || problemData.difficulty || 'Medium';
 
-    // 2. Formulate Socratic AI Prompt for 5 MCQs with randomized answer positions
     const promptText = `
 You are a world-class Socratic technical interviewer.
 Generate 5 distinct Socratic multiple-choice quiz questions for LeetCode Problem #${problemData.number}: "${problemData.title}".
@@ -91,11 +88,9 @@ Return ONLY valid JSON matching this exact structure:
 }
 `;
 
-    // 3. Dispatch to 3-API Traffic Controller
     const aiResult = await aiTrafficController.generateSocraticQuiz(promptText);
     const rawQuestions = aiResult.data?.questions || [];
 
-    // Format, normalize, and SHUFFLE options for all 5 questions
     const formattedQuestions = rawQuestions.map((q, qIdx) => {
       const baseQ = {
         id: qIdx + 1,
@@ -114,7 +109,6 @@ Return ONLY valid JSON matching this exact structure:
       return shuffleQuestionOptions(baseQ);
     });
 
-    // Fallback template items if AI returns fewer than 5 questions
     const fallbackTemplates = [
       {
         questionText: `Question 1: What is the primary time complexity flaw of utilizing naive brute force iteration for ${problemData.title}?`,
@@ -203,6 +197,75 @@ Return ONLY valid JSON matching this exact structure:
   }
 };
 
+export const syncActiveProblem = async (req, res) => {
+  const { problemInput, title, slug, number } = req.body;
+  const userId = req.user?._id;
+  if (!userId) return res.status(401).json({ message: 'User not authenticated' });
+
+  try {
+    let resolvedProblem = { title: title || problemInput, slug: slug || problemInput, number: number || '15' };
+    
+    if (!title && problemInput) {
+      const p = await fetchLeetCodeProblem(problemInput);
+      resolvedProblem = { title: p.title, slug: p.slug, number: p.number };
+    }
+
+    activeUserProblems.set(String(userId), {
+      ...resolvedProblem,
+      updatedAt: Date.now(),
+    });
+
+    res.json({ message: 'Active problem synced successfully', problem: resolvedProblem });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getActiveProblem = async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) return res.status(401).json({ message: 'User not authenticated' });
+
+  try {
+    // 1. Check real-time active problem synced via click / extension / URL parameter
+    const realTimeActive = activeUserProblems.get(String(userId));
+    if (realTimeActive && (Date.now() - realTimeActive.updatedAt < 1000 * 60 * 60)) {
+      return res.json({
+        hasActiveProblem: true,
+        title: realTimeActive.title,
+        slug: realTimeActive.slug,
+        number: realTimeActive.number,
+        source: 'clicked',
+      });
+    }
+
+    // 2. Fall back to LeetCode profile recent activity API
+    let userObj = null;
+    if (mongoose.connection.readyState === 1) {
+      userObj = await User.findById(userId);
+    } else {
+      userObj = memoryUsers.get(String(userId));
+    }
+
+    if (!userObj) return res.status(404).json({ message: 'User not found' });
+
+    const username = userObj.leetcodeUrl || userObj.username;
+    const recentProblem = await fetchRecentLeetCodeUserProblem(username);
+
+    if (recentProblem) {
+      return res.json({
+        hasActiveProblem: true,
+        title: recentProblem.title,
+        slug: recentProblem.slug,
+        source: 'recent_submission',
+      });
+    }
+
+    res.json({ hasActiveProblem: false });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const recordQuizSubmission = async (req, res) => {
   const { number, title, scorePercent, correctCount, totalQuestions, userAnswers } = req.body;
   const userId = req.user?._id;
@@ -222,6 +285,8 @@ export const recordQuizSubmission = async (req, res) => {
       submission = await Submission.create({
         userId,
         quizId: new mongoose.Types.ObjectId(),
+        problemNumber: String(number || '15'),
+        problemTitle: title || '3Sum',
         score: scorePercent || 0,
         totalQuestions: totalQuestions || 5,
         correctCount: correctCount || 0,
@@ -246,7 +311,6 @@ export const recordQuizSubmission = async (req, res) => {
         userStats = { xp: user.xp, level: user.level, streak: user.streak };
       }
     } else {
-      // Memory fallback update
       const memUser = memoryUsers.get(String(userId));
       if (memUser) {
         memUser.xp = (memUser.xp || 0) + xpEarned;
@@ -254,7 +318,16 @@ export const recordQuizSubmission = async (req, res) => {
         memUser.streak = (memUser.streak || 0) + 1;
         userStats = { xp: memUser.xp, level: memUser.level, streak: memUser.streak };
       }
-      submission = { userId: String(userId), score: scorePercent, xpEarned };
+      submission = { 
+        userId: String(userId), 
+        problemNumber: String(number || '15'),
+        problemTitle: title || '3Sum',
+        score: scorePercent, 
+        correctCount: correctCount || 0,
+        totalQuestions: totalQuestions || 5,
+        xpEarned,
+        createdAt: new Date().toISOString()
+      };
       memorySubmissions.push(submission);
     }
 
