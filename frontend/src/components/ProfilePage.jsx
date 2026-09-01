@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, Award, AlertTriangle, Sparkles, LogOut } from 'lucide-react';
+import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, Award, AlertTriangle, Sparkles, LogOut, Edit3, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import axios from 'axios';
 import { getCurrentUser, logoutUser, initAuth } from '../services/auth';
@@ -30,6 +30,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     initAuth();
@@ -140,7 +141,10 @@ export default function ProfilePage({ onGoHome, onLogout }) {
       console.warn('[Profile]: Failed to update profile on backend server.', err);
     }
 
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      setShowEditModal(false);
+    }, 1200);
   };
 
   const handleDeleteAccount = async () => {
@@ -205,18 +209,38 @@ export default function ProfilePage({ onGoHome, onLogout }) {
         {/* Profile Header & Avatar Card */}
         <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-8 shadow-[0_0_50px_rgba(245,158,11,0.08)] flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-6">
-            {/* Custom Initial Avatar */}
-            <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-amber-500 to-amber-700 p-0.5 shadow-[0_0_25px_rgba(245,158,11,0.3)] shrink-0">
-              <div className="w-full h-full bg-[#12131a] rounded-2xl flex items-center justify-center text-2xl font-black text-amber-400">
+            {/* Custom Initial Avatar with Edit Overlay Icon */}
+            <div
+              onClick={() => setShowEditModal(true)}
+              className="relative w-20 h-20 rounded-2xl bg-linear-to-br from-amber-500 to-amber-700 p-0.5 shadow-[0_0_25px_rgba(245,158,11,0.3)] shrink-0 cursor-pointer group"
+              title="Click to Edit Profile"
+            >
+              <div className="w-full h-full bg-[#12131a] rounded-2xl flex items-center justify-center text-2xl font-black text-amber-400 group-hover:opacity-40 transition-opacity">
                 {initials}
+              </div>
+
+              {/* Hover Edit Overlay Icon */}
+              <div className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-amber-400 font-mono text-[10px] font-bold">
+                <Edit3 className="w-5 h-5 mb-0.5" />
+                <span>EDIT</span>
               </div>
             </div>
 
             {/* Name & Handle */}
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">
-                {formData.firstName || 'Developer'} {formData.lastName || ''}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-black text-white tracking-tight">
+                  {formData.firstName || 'Developer'} {formData.lastName || ''}
+                </h1>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-mono font-bold px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
+
               <p className="text-xs font-mono text-zinc-400 mt-1">
                 @{formData.username || 'user'} • <span className="text-amber-400 font-bold">Algorithm Architect</span>
               </p>
@@ -280,130 +304,6 @@ export default function ProfilePage({ onGoHome, onLogout }) {
           </div>
         </div>
 
-        {/* Editable Profile Form */}
-        <div className="bg-[#0c0d12] border border-zinc-800 rounded-2xl p-8 space-y-6">
-          <div>
-            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <User className="w-5 h-5 text-amber-400" />
-              <span>Personal & Developer Credentials</span>
-            </h2>
-            <p className="text-xs text-zinc-400 mt-1">
-              Update your user credentials saved in MongoDB.
-            </p>
-          </div>
-
-          <form onSubmit={handleSave} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* First Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">First Name</label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {/* Last Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">Last Name</label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {/* Username */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">Email Address</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Mobile Number */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">Mobile Number</label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  <input
-                    type="text"
-                    name="mobile"
-                    value={formData.mobile}
-                    onChange={handleChange}
-                    placeholder="+91 9876543210"
-                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* LeetCode Profile URL */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-bold text-zinc-400">LeetCode Profile URL</label>
-                <div className="relative">
-                  <Link className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500" />
-                  <input
-                    type="text"
-                    name="leetcodeUrl"
-                    value={formData.leetcodeUrl}
-                    onChange={handleChange}
-                    placeholder="https://leetcode.com/u/username"
-                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-3 text-xs font-mono text-white focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-900">
-              {saveSuccess ? (
-                <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3.5 py-2 rounded-lg border border-emerald-500/30">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  Credentials updated in MongoDB!
-                </span>
-              ) : (
-                <div />
-              )}
-
-              <button
-                type="submit"
-                className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-black font-mono uppercase px-8 py-3.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-95 ml-auto"
-              >
-                <Save className="w-4 h-4" />
-                <span>Save Profile</span>
-              </button>
-            </div>
-          </form>
-        </div>
-
         {/* Danger Zone */}
         <div className="bg-[#0c0d12] border border-rose-500/30 rounded-2xl p-8 space-y-4">
           <div className="flex items-center gap-3 text-rose-400">
@@ -425,6 +325,156 @@ export default function ProfilePage({ onGoHome, onLogout }) {
           </div>
         </div>
       </main>
+
+      {/* Edit Profile Modal (Opens when clicking profile avatar or Edit Profile button) */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-6 sm:p-8 max-w-xl w-full relative shadow-[0_0_50px_rgba(245,158,11,0.15)] animate-in fade-in zoom-in-95 duration-200 space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Edit Profile Details</h2>
+                  <p className="text-[11px] font-mono text-zinc-400">
+                    Update your developer credentials saved in MongoDB
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-zinc-500 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Editable Form */}
+            <form onSubmit={handleSave} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* First Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">First Name</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Last Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">Last Name</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Username */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Mobile Number */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">Mobile Number</label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <input
+                      type="text"
+                      name="mobile"
+                      value={formData.mobile}
+                      onChange={handleChange}
+                      placeholder="+91 9876543210"
+                      className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* LeetCode Profile URL */}
+                <div className="space-y-1">
+                  <label className="text-xs font-mono font-bold text-zinc-400">LeetCode Profile URL</label>
+                  <div className="relative">
+                    <Link className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" />
+                    <input
+                      type="text"
+                      name="leetcodeUrl"
+                      value={formData.leetcodeUrl}
+                      onChange={handleChange}
+                      placeholder="https://leetcode.com/u/username"
+                      className="w-full bg-[#14151c] border border-zinc-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono text-white focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3 border-t border-zinc-900">
+                {saveSuccess ? (
+                  <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    Profile Updated!
+                  </span>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono font-bold px-4 py-2.5 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-black font-mono uppercase px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] active:scale-95"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
