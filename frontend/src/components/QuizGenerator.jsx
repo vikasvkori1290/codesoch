@@ -3,7 +3,7 @@ import { Brain, Search, Sparkles, Lightbulb, ChevronRight, ChevronLeft, CheckCir
 import axios from 'axios';
 
 export default function QuizGenerator({ onGoHome }) {
-  const [problemInput, setProblemInput] = useState('15');
+  const [problemInput, setProblemInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuiz, setGeneratedQuiz] = useState(null);
   
