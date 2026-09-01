@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+
 import { connectDB } from './config/db.js';
 import quizRoutes from './routes/quizRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -8,9 +11,6 @@ import srsRoutes from './routes/srsRoutes.js';
 import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
-
-import fs from 'fs';
-import path from 'path';
 
 // Load .env or .env.example
 if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
@@ -23,8 +23,29 @@ if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Configure CORS Origin options
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server) or matching allowed origins
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
 app.use(express.json());
 
 // Routes
