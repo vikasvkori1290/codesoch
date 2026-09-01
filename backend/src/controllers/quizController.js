@@ -97,7 +97,7 @@ Return ONLY valid JSON matching this exact structure:
       slug: problemData.slug,
       difficulty: selectedDiff,
       description: problemData.description,
-      questions: formattedQuestions.slice(0, 5), // Guarantee 5 MCQs
+      questions: formattedQuestions.slice(0, 5),
       providerUsed: aiResult.providerUsed || 'Google Gemini 2.5',
     };
 
@@ -106,6 +106,59 @@ Return ONLY valid JSON matching this exact structure:
     console.error(`[Quiz Generation Error]:`, error);
     res.status(500).json({ message: error.message || 'Failed to generate 5 Socratic MCQs' });
   }
+};
+
+export const recordQuizSubmission = async (req, res) => {
+  const { number, title, scorePercent, correctCount, totalQuestions, userAnswers } = req.body;
+  const userId = req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'User not authenticated' });
+  }
+
+  const xpEarned = Math.round((scorePercent || 0) * 4); // e.g. 100% = +400 XP
+
+  // Create submission record in MongoDB
+  const submission = await Submission.create({
+    userId,
+    score: scorePercent || 0,
+    totalQuestions: totalQuestions || 5,
+    correctCount: correctCount || 0,
+    xpEarned,
+    userAnswers: userAnswers || [],
+  });
+
+  // Update User model statistics
+  const user = await User.findById(userId);
+  if (user) {
+    user.xp += xpEarned;
+    user.level = Math.floor(user.xp / 100) + 1;
+
+    // Daily streak logic
+    const now = new Date();
+    if (user.lastQuizDate) {
+      const diffHours = (now - new Date(user.lastQuizDate)) / (1000 * 60 * 60);
+      if (diffHours >= 24 && diffHours <= 48) {
+        user.streak += 1;
+      } else if (diffHours > 48) {
+        user.streak = 1;
+      }
+    } else {
+      user.streak = 1;
+    }
+    user.lastQuizDate = now;
+    await user.save();
+  }
+
+  res.json({
+    message: 'Submission recorded successfully',
+    submission,
+    userStats: {
+      xp: user?.xp || 0,
+      level: user?.level || 1,
+      streak: user?.streak || 0,
+    },
+  });
 };
 
 export const getQuizById = async (req, res) => {

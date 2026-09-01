@@ -1,29 +1,95 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, Award, AlertTriangle, Sparkles } from 'lucide-react';
+import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, Award, AlertTriangle, Sparkles, LogOut } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import axios from 'axios';
+import { getCurrentUser, logoutUser, initAuth } from '../services/auth';
 
-export default function ProfilePage({ onGoHome }) {
+export default function ProfilePage({ onGoHome, onLogout }) {
   const [formData, setFormData] = useState({
-    firstName: 'Vikas',
-    lastName: 'Kori',
-    username: 'vikaskori',
-    email: 'vikas@codesoch.dev',
-    mobile: '+91 9876543210',
-    leetcodeUrl: 'https://leetcode.com/u/vikasvkori',
-    socialUrl: 'https://github.com/vikasvkori1290',
+    firstName: '',
+    lastName: '',
+    username: '',
+    email: '',
+    mobile: '',
+    leetcodeUrl: '',
+    socialUrl: '',
   });
 
-  const [stats, setStats] = useState({
-    xp: 2488,
-    level: 12,
-    streak: 14,
+  const [userStats, setUserStats] = useState({
+    xp: 0,
+    level: 1,
+    streak: 0,
     isProfileComplete: false,
+    quizzesSolved: 0,
+    avgAccuracy: 0,
+    dueSrsCount: 0,
+    rank: '#1',
   });
 
+  const [loading, setLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  useEffect(() => {
+    initAuth();
+    fetchRealProfile();
+  }, []);
+
+  const fetchRealProfile = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/auth/profile');
+      const u = response.data.user || response.data;
+      const s = response.data.stats || {};
+
+      setFormData({
+        firstName: u.firstName || '',
+        lastName: u.lastName || '',
+        username: u.username || '',
+        email: u.email || '',
+        mobile: u.mobile || '',
+        leetcodeUrl: u.leetcodeUrl || '',
+        socialUrl: u.socialUrl || '',
+      });
+
+      setUserStats({
+        xp: u.xp || 0,
+        level: u.level || Math.floor((u.xp || 0) / 100) + 1,
+        streak: u.streak || 0,
+        isProfileComplete: Boolean(u.isProfileComplete),
+        quizzesSolved: s.quizzesSolved || 0,
+        avgAccuracy: s.avgAccuracy || 0,
+        dueSrsCount: s.dueSrsCount || 0,
+        rank: s.rank || '#1',
+      });
+    } catch (err) {
+      console.warn('[Profile]: Backend unauthenticated or error. Falling back to local storage profile.', err);
+      const cached = getCurrentUser();
+      if (cached) {
+        setFormData({
+          firstName: cached.firstName || 'Vikas',
+          lastName: cached.lastName || 'Kori',
+          username: cached.username || 'vikaskori',
+          email: cached.email || 'vikas@codesoch.dev',
+          mobile: cached.mobile || '+91 9876543210',
+          leetcodeUrl: cached.leetcodeUrl || '',
+          socialUrl: cached.socialUrl || '',
+        });
+        setUserStats({
+          xp: cached.xp || 0,
+          level: cached.level || 1,
+          streak: cached.streak || 0,
+          isProfileComplete: Boolean(cached.mobile),
+          quizzesSolved: 0,
+          avgAccuracy: 0,
+          dueSrsCount: 0,
+          rank: '#1',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calculate completion percentage
   const totalFields = 6;
@@ -46,21 +112,32 @@ export default function ProfilePage({ onGoHome }) {
     e?.preventDefault();
     setSaveSuccess(true);
 
-    // Trigger celebration confetti if profile becomes 100% complete
-    if (completionPercent === 100 && !stats.isProfileComplete) {
-      setStats((prev) => ({ ...prev, xp: prev.xp + 10, isProfileComplete: true }));
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#F59E0B', '#10B981', '#6366F1'],
-      });
-    }
-
     try {
-      await axios.put('http://localhost:5000/api/auth/profile', formData);
+      const response = await axios.put('http://localhost:5000/api/auth/profile', formData);
+      const u = response.data.user || response.data;
+      const s = response.data.stats || {};
+
+      setUserStats((prev) => ({
+        ...prev,
+        xp: u.xp || prev.xp,
+        level: u.level || prev.level,
+        isProfileComplete: Boolean(u.isProfileComplete),
+        quizzesSolved: s.quizzesSolved !== undefined ? s.quizzesSolved : prev.quizzesSolved,
+        avgAccuracy: s.avgAccuracy !== undefined ? s.avgAccuracy : prev.avgAccuracy,
+        rank: s.rank || prev.rank,
+      }));
+
+      // Trigger celebration confetti if profile becomes 100% complete
+      if (completionPercent === 100 && !userStats.isProfileComplete) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#F59E0B', '#10B981', '#6366F1'],
+        });
+      }
     } catch (err) {
-      console.warn('[Profile]: Backend API save fallback to local state.', err);
+      console.warn('[Profile]: Failed to update profile on backend server.', err);
     }
 
     setTimeout(() => setSaveSuccess(false), 3000);
@@ -71,16 +148,24 @@ export default function ProfilePage({ onGoHome }) {
     try {
       await axios.delete('http://localhost:5000/api/user/delete');
     } catch (err) {
-      console.warn('[Profile]: Backend API delete fallback.', err);
+      console.warn('[Profile]: Backend delete call failed.', err);
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
+      logoutUser();
+      if (onLogout) onLogout();
       onGoHome();
     }
   };
 
+  const handleLogoutClick = () => {
+    logoutUser();
+    if (onLogout) onLogout();
+    onGoHome();
+  };
+
   // Generate initials for avatar
-  const initials = `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`.toUpperCase() || 'AA';
+  const initials = `${(formData.firstName || 'C').charAt(0)}${(formData.lastName || 'S').charAt(0)}`.toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#060608] text-white font-sans selection:bg-amber-500 selection:text-black relative">
@@ -98,12 +183,21 @@ export default function ProfilePage({ onGoHome }) {
           </span>
         </div>
 
-        <button
-          onClick={onGoHome}
-          className="text-xs font-mono font-bold text-zinc-400 hover:text-amber-400 uppercase tracking-wider transition-colors"
-        >
-          ← Back to Home
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleLogoutClick}
+            className="flex items-center gap-1.5 text-xs font-mono font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3.5 py-2 rounded-lg transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
+          <button
+            onClick={onGoHome}
+            className="text-xs font-mono font-bold text-zinc-400 hover:text-amber-400 uppercase tracking-wider transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
       </header>
 
       {/* Main Profile Container */}
@@ -121,25 +215,25 @@ export default function ProfilePage({ onGoHome }) {
             {/* Name & Handle */}
             <div>
               <h1 className="text-2xl font-black text-white tracking-tight">
-                {formData.firstName} {formData.lastName}
+                {formData.firstName || 'Developer'} {formData.lastName || ''}
               </h1>
               <p className="text-xs font-mono text-zinc-400 mt-1">
-                @{formData.username} • <span className="text-amber-400 font-bold">Algorithm Architect</span>
+                @{formData.username || 'user'} • <span className="text-amber-400 font-bold">Algorithm Architect</span>
               </p>
 
               {/* Gamification Badges */}
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
                   <Flame className="w-3.5 h-3.5 fill-amber-500" />
-                  {stats.streak} Day Streak
+                  {userStats.streak} Day Streak
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
                   <Trophy className="w-3.5 h-3.5" />
-                  {stats.xp.toLocaleString()} XP
+                  {userStats.xp.toLocaleString()} XP
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1 rounded-full">
                   <Shield className="w-3.5 h-3.5" />
-                  Level {stats.level}
+                  Level {userStats.level}
                 </span>
               </div>
             </div>
@@ -166,23 +260,23 @@ export default function ProfilePage({ onGoHome }) {
           </div>
         </div>
 
-        {/* Account Stats Overview Grid */}
+        {/* Real MongoDB Account Stats Overview Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Quizzes Solved</span>
-            <span className="text-2xl font-black text-white">18</span>
+            <span className="text-2xl font-black text-white">{userStats.quizzesSolved}</span>
           </div>
           <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Avg Accuracy</span>
-            <span className="text-2xl font-black text-emerald-400">88%</span>
+            <span className="text-2xl font-black text-emerald-400">{userStats.avgAccuracy}%</span>
           </div>
           <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">SRS Due Items</span>
-            <span className="text-2xl font-black text-amber-400">0</span>
+            <span className="text-2xl font-black text-amber-400">{userStats.dueSrsCount}</span>
           </div>
           <div className="bg-[#0c0d12] border border-zinc-800 rounded-xl p-5 text-center">
             <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Current Rank</span>
-            <span className="text-2xl font-black text-amber-400">#2</span>
+            <span className="text-2xl font-black text-amber-400">{userStats.rank}</span>
           </div>
         </div>
 
@@ -191,10 +285,10 @@ export default function ProfilePage({ onGoHome }) {
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <User className="w-5 h-5 text-amber-400" />
-              <span>Personal & Developer Information</span>
+              <span>Personal & Developer Credentials</span>
             </h2>
             <p className="text-xs text-zinc-400 mt-1">
-              Update your user profile details to personalize your CodeSoch account.
+              Update your user credentials saved in MongoDB.
             </p>
           </div>
 
@@ -293,7 +387,7 @@ export default function ProfilePage({ onGoHome }) {
               {saveSuccess ? (
                 <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3.5 py-2 rounded-lg border border-emerald-500/30">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  Profile updated successfully! (+10 XP bonus verified)
+                  Credentials updated in MongoDB!
                 </span>
               ) : (
                 <div />
@@ -310,7 +404,7 @@ export default function ProfilePage({ onGoHome }) {
           </form>
         </div>
 
-        {/* Danger Zone (Account Deletion) */}
+        {/* Danger Zone */}
         <div className="bg-[#0c0d12] border border-rose-500/30 rounded-2xl p-8 space-y-4">
           <div className="flex items-center gap-3 text-rose-400">
             <AlertTriangle className="w-5 h-5 fill-rose-500/20" />

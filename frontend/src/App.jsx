@@ -1,23 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import QuizGenerator from './components/QuizGenerator';
 import ProfilePage from './components/ProfilePage';
+import AuthModal from './components/AuthModal';
+import { initAuth, getCurrentUser } from './services/auth';
 
 export default function App() {
   const [view, setView] = useState('landing'); // 'landing' | 'quiz' | 'profile'
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  if (view === 'quiz') {
-    return <QuizGenerator onGoHome={() => setView('landing')} />;
-  }
+  useEffect(() => {
+    initAuth();
+    const user = getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    }
+  }, []);
 
-  if (view === 'profile') {
-    return <ProfilePage onGoHome={() => setView('landing')} />;
-  }
+  const handleAuthSuccess = (userData) => {
+    setCurrentUser(userData);
+    setIsAuthModalOpen(false);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setView('landing');
+  };
 
   return (
-    <LandingPage
-      onOpenQuiz={() => setView('quiz')}
-      onOpenProfile={() => setView('profile')}
-    />
+    <>
+      {view === 'quiz' && (
+        <QuizGenerator onGoHome={() => setView('landing')} />
+      )}
+
+      {view === 'profile' && (
+        <ProfilePage
+          onGoHome={() => setView('landing')}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {view === 'landing' && (
+        <LandingPage
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenQuiz={() => setView('quiz')}
+          onOpenProfile={() => setView('profile')}
+        />
+      )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+    </>
   );
 }

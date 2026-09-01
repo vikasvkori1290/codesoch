@@ -134,7 +134,39 @@ export default function QuizGenerator({ onGoHome }) {
   const isCurrentSubmitted = submittedQuestions[currentQIndex];
   const currentSelectedOption = userAnswers[currentQIndex];
 
-  // Calculate final score summary
+  // Calculate final score summary & record to MongoDB
+  const handleFinishQuiz = async () => {
+    setIsQuizCompleted(true);
+    if (!generatedQuiz?.questions) return;
+    
+    let correctCount = 0;
+    generatedQuiz.questions.forEach((q, idx) => {
+      if (userAnswers[idx] === q.correctAnswerIndex) {
+        correctCount++;
+      }
+    });
+
+    const total = generatedQuiz.questions.length;
+    const scorePercent = Math.round((correctCount / total) * 100);
+
+    try {
+      const token = localStorage.getItem('thinkquiz_token');
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        await axios.post('http://localhost:5000/api/quiz/record-submission', {
+          number: generatedQuiz.number,
+          title: generatedQuiz.title,
+          scorePercent,
+          correctCount,
+          totalQuestions: total,
+          userAnswers,
+        });
+      }
+    } catch (err) {
+      console.warn('[Quiz submission record]: Backend call failed.', err);
+    }
+  };
+
   const calculateResults = () => {
     if (!generatedQuiz?.questions) return { correctCount: 0, total: 5, scorePercent: 0, xp: 0 };
     let correctCount = 0;
@@ -145,7 +177,7 @@ export default function QuizGenerator({ onGoHome }) {
     });
     const total = generatedQuiz.questions.length;
     const scorePercent = Math.round((correctCount / total) * 100);
-    const xp = scorePercent * 4; // e.g., 100% = 400 XP
+    const xp = scorePercent * 4;
     return { correctCount, total, scorePercent, xp };
   };
 
@@ -395,7 +427,7 @@ export default function QuizGenerator({ onGoHome }) {
                         </button>
                       ) : (
                         <button
-                          onClick={() => setIsQuizCompleted(true)}
+                          onClick={handleFinishQuiz}
                           className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black font-mono uppercase px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] active:scale-95"
                         >
                           <span>View Final Summary</span>
