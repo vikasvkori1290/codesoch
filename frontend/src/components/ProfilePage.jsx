@@ -176,36 +176,41 @@ export default function ProfilePage({ onGoHome, onLogout }) {
       {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#17140b_1px,transparent_1px),linear-gradient(to_bottom,#17140b_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
-      {/* Top Navbar */}
-      <header className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between relative z-20 border-b border-zinc-900">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={onGoHome}>
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            <Brain className="w-5 h-5 text-amber-400" />
+      {/* Subtle Aesthetic Dynamic Island Navbar */}
+      <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#08090e]/75 backdrop-blur-2xl border border-white/10 hover:border-amber-500/30 rounded-full px-4 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex items-center gap-3 transition-all duration-300">
+        <div 
+          onClick={onGoHome}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-white/5 transition-all cursor-pointer group"
+        >
+          <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+            <Brain className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">
+          <span className="text-sm font-black tracking-tight text-white/90 font-sans">
             Code<span className="text-amber-400">Soch</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="w-px h-4 bg-white/10" />
+
+        <div className="flex items-center gap-2">
           <button
             onClick={handleLogoutClick}
-            className="flex items-center gap-1.5 text-xs font-mono font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3.5 py-2 rounded-lg transition-all"
+            className="flex items-center gap-1.5 text-xs font-mono font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 px-3.5 py-1.5 rounded-full transition-all"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
           </button>
           <button
             onClick={onGoHome}
-            className="text-xs font-mono font-bold text-zinc-400 hover:text-amber-400 uppercase tracking-wider transition-colors"
+            className="flex items-center gap-1.5 text-xs font-mono font-medium text-zinc-300 hover:text-amber-400 bg-white/5 hover:bg-amber-500/10 border border-white/10 hover:border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all"
           >
-            ← Back to Home
+            <span>← Home</span>
           </button>
         </div>
       </header>
 
       {/* Main Profile Container */}
-      <main className="max-w-4xl mx-auto px-8 py-10 space-y-8 relative z-10">
+      <main className="max-w-4xl mx-auto px-8 pt-28 pb-10 space-y-8 relative z-10">
         {/* Profile Header & Avatar Card */}
         <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-8 shadow-[0_0_50px_rgba(245,158,11,0.08)] flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-6">

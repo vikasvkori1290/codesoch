@@ -68,7 +68,7 @@ export const registerUser = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    const fakeId = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const fakeId = new mongoose.Types.ObjectId().toHexString();
 
     const userObj = {
       _id: fakeId,

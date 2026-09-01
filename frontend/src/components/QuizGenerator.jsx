@@ -2,6 +2,26 @@ import React, { useState } from 'react';
 import { Brain, Search, Sparkles, Lightbulb, ChevronRight, ChevronLeft, CheckCircle2, XCircle, RefreshCw, Cpu, Trophy, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 
+function shuffleOptions(q) {
+  const origCorrect = q.correctAnswerIndex ?? 0;
+  let opts = q.options.map((opt, i) => ({
+    text: typeof opt === 'string' ? opt : opt.text,
+    isCorrect: i === origCorrect,
+  }));
+
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+
+  const newCorrectIndex = opts.findIndex((o) => o.isCorrect);
+  return {
+    ...q,
+    options: opts.map((o, idx) => ({ id: idx, text: o.text })),
+    correctAnswerIndex: newCorrectIndex >= 0 ? newCorrectIndex : 0,
+  };
+}
+
 export default function QuizGenerator({ onGoHome }) {
   const [problemInput, setProblemInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -52,10 +72,10 @@ export default function QuizGenerator({ onGoHome }) {
             id: 1,
             questionText: `Q1 (Complexity): What is the primary time complexity flaw of utilizing a naive 3-pointer brute force iteration for ${title}?`,
             options: [
-              { id: 0, text: 'Space complexity is O(N) due to tuple set storage.' },
-              { id: 1, text: 'Time complexity is O(N³), causing Time Limit Exceeded (TLE) on large inputs.' },
-              { id: 2, text: 'Sorting alters original indices causing invalid calculations.' },
-              { id: 3, text: 'Nested loops fail on negative numbers.' },
+              'Space complexity is O(N) due to tuple set storage.',
+              'Time complexity is O(N³), causing Time Limit Exceeded (TLE) on large inputs.',
+              'Sorting alters original indices causing invalid calculations.',
+              'Nested loops fail on negative numbers.',
             ],
             correctAnswerIndex: 1,
             hint: '💡 Socratic Hint: Triple nested loops run in O(N³). Sorting first enables O(N²) two-pointer traversal.',
@@ -65,10 +85,10 @@ export default function QuizGenerator({ onGoHome }) {
             id: 2,
             questionText: `Q2 (Pattern Analysis): Which algorithmic pattern allows reducing traversal time from O(N³) to O(N²)?`,
             options: [
-              { id: 0, text: 'Monotonic Stack traversal.' },
-              { id: 1, text: 'Sorting array + Two-Pointer Convergence.' },
-              { id: 2, text: 'Breadth-First Search on a graph.' },
-              { id: 3, text: 'Dynamic Programming memoization table.' },
+              'Monotonic Stack traversal.',
+              'Sorting array + Two-Pointer Convergence.',
+              'Breadth-First Search on a graph.',
+              'Dynamic Programming memoization table.',
             ],
             correctAnswerIndex: 1,
             hint: '💡 Socratic Hint: Sorting allows fixing one element and using left/right pointers to find remaining sum.',
@@ -78,10 +98,10 @@ export default function QuizGenerator({ onGoHome }) {
             id: 3,
             questionText: `Q3 (Edge Cases): How should duplicate triplets be avoided without consuming extra O(N³) memory?`,
             options: [
-              { id: 0, text: 'By storing all triplets in a Hash Set.' },
-              { id: 1, text: 'By skipping identical adjacent elements during pointer movement.' },
-              { id: 2, text: 'By clearing the array after every match.' },
-              { id: 3, text: 'By converting all integers to absolute values.' },
+              'By storing all triplets in a Hash Set.',
+              'By skipping identical adjacent elements during pointer movement.',
+              'By clearing the array after every match.',
+              'By converting all integers to absolute values.',
             ],
             correctAnswerIndex: 1,
             hint: '💡 Socratic Hint: In a sorted array, duplicate values are adjacent. Skipping `nums[i] == nums[i-1]` eliminates duplicates.',
@@ -91,10 +111,10 @@ export default function QuizGenerator({ onGoHome }) {
             id: 4,
             questionText: `Q4 (Invariant Tracing): When searching for sum = 0 with sorted nums[i] + nums[left] + nums[right], what action is taken if the sum > 0?`,
             options: [
-              { id: 0, text: 'Increment left pointer (left++).' },
-              { id: 1, text: 'Decrement right pointer (right--).' },
-              { id: 2, text: 'Break out of the outer loop.' },
-              { id: 3, text: 'Reset left to index 0.' },
+              'Increment left pointer (left++).',
+              'Decrement right pointer (right--).',
+              'Break out of the outer loop.',
+              'Reset left to index 0.',
             ],
             correctAnswerIndex: 1,
             hint: '💡 Socratic Hint: In a sorted array, moving right pointer to the left decreases the sum.',
@@ -104,16 +124,16 @@ export default function QuizGenerator({ onGoHome }) {
             id: 5,
             questionText: `Q5 (Optimization Trade-off): What is the optimal Space Complexity for the 3Sum two-pointer approach?`,
             options: [
-              { id: 0, text: 'O(N) for recursion call stack.' },
-              { id: 1, text: 'O(1) auxiliary space (excluding result set).' },
-              { id: 2, text: 'O(N²) for hash table lookup.' },
-              { id: 3, text: 'O(log N) memory allocation.' },
+              'O(N) for recursion call stack.',
+              'O(1) auxiliary space (excluding result set).',
+              'O(N²) for hash table lookup.',
+              'O(log N) memory allocation.',
             ],
             correctAnswerIndex: 1,
             hint: '💡 Socratic Hint: Two pointers only require two integer variables (left, right).',
             explanation: 'Two pointers operate directly in-place on the sorted input array, using O(1) auxiliary space.',
           },
-        ],
+        ].map(shuffleOptions),
       });
     } finally {
       setIsGenerating(false);
@@ -186,27 +206,32 @@ export default function QuizGenerator({ onGoHome }) {
       {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#17140b_1px,transparent_1px),linear-gradient(to_bottom,#17140b_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
-      {/* Top Navbar */}
-      <header className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between relative z-20 border-b border-zinc-900">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={onGoHome}>
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            <Brain className="w-5 h-5 text-amber-400" />
+      {/* Subtle Aesthetic Dynamic Island Navbar */}
+      <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#08090e]/75 backdrop-blur-2xl border border-white/10 hover:border-amber-500/30 rounded-full px-4 py-2 shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex items-center gap-3 transition-all duration-300">
+        <div 
+          onClick={onGoHome}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-white/5 transition-all cursor-pointer group"
+        >
+          <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+            <Brain className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">
+          <span className="text-sm font-black tracking-tight text-white/90 font-sans">
             Code<span className="text-amber-400">Soch</span>
           </span>
         </div>
 
+        <div className="w-px h-4 bg-white/10" />
+
         <button
           onClick={onGoHome}
-          className="text-xs font-mono font-bold text-zinc-400 hover:text-amber-400 uppercase tracking-wider transition-colors"
+          className="flex items-center gap-1.5 text-xs font-mono font-medium text-zinc-300 hover:text-amber-400 bg-white/5 hover:bg-amber-500/10 border border-white/10 hover:border-amber-500/30 px-3.5 py-1.5 rounded-full transition-all"
         >
-          ← Back to Home
+          <span>← Home</span>
         </button>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-5xl mx-auto px-8 pt-12 pb-16 space-y-10 relative z-10">
+      <main className="max-w-5xl mx-auto px-8 pt-28 pb-16 space-y-10 relative z-10">
         {/* LeetCode Input Generator Card */}
         <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.1)]">
           <form onSubmit={handleGenerate} className="flex flex-col sm:flex-row items-center gap-4">

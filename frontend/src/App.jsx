@@ -8,6 +8,7 @@ import { initAuth, getCurrentUser } from './services/auth';
 export default function App() {
   const [view, setView] = useState('landing'); // 'landing' | 'quiz' | 'profile'
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -28,6 +29,11 @@ export default function App() {
     setView('landing');
   };
 
+  const handleOpenAuthModal = (mode = 'login') => {
+    setAuthMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   return (
     <>
       {view === 'quiz' && (
@@ -44,7 +50,7 @@ export default function App() {
       {view === 'landing' && (
         <LandingPage
           currentUser={currentUser}
-          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenAuthModal={handleOpenAuthModal}
           onOpenQuiz={() => setView('quiz')}
           onOpenProfile={() => setView('profile')}
         />
@@ -52,6 +58,7 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialMode={authMode}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
       />
