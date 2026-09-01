@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Brain, Search, Sparkles, Code2, Lightbulb, ChevronRight, CheckCircle2, XCircle, RefreshCw, Cpu } from 'lucide-react';
+import { Brain, Search, Sparkles, Lightbulb, ChevronRight, ChevronLeft, CheckCircle2, XCircle, RefreshCw, Cpu, Trophy, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 
 export default function QuizGenerator({ onGoHome }) {
   const [problemInput, setProblemInput] = useState('15');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuiz, setGeneratedQuiz] = useState(null);
-  const [selectedOption, setSelectedOption] = useState(null);
+  
+  // State tracking 5 MCQs session
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState({}); // { 0: optionId, 1: optionId, ... }
+  const [submittedQuestions, setSubmittedQuestions] = useState({}); // { 0: true, 1: true, ... }
   const [showHint, setShowHint] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isQuizCompleted, setIsQuizCompleted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleGenerate = async (e) => {
@@ -18,48 +22,131 @@ export default function QuizGenerator({ onGoHome }) {
     setIsGenerating(true);
     setErrorMsg('');
     setGeneratedQuiz(null);
-    setSelectedOption(null);
+    setCurrentQIndex(0);
+    setUserAnswers({});
+    setSubmittedQuestions({});
     setShowHint(false);
-    setIsSubmitted(false);
+    setIsQuizCompleted(false);
 
     try {
-      // Call Express Backend Endpoint connected to LeetCode GraphQL + 3-API AI Traffic Controller
+      // Call Backend API to generate 5 Socratic MCQs
       const response = await axios.post('http://localhost:5000/api/quiz/generate', {
         problemInput: problemInput.trim(),
       });
 
       setGeneratedQuiz(response.data);
     } catch (err) {
-      console.warn('[Frontend]: Backend API unreachable or error. Using client fallback generator.', err);
+      console.warn('[Frontend]: Backend API unreachable or error. Using client fallback 5-MCQs session.', err);
       
-      // Resilient fallback mock quiz if backend server is offline
       const num = problemInput.trim() || '15';
+      const title = num === '15' ? '3Sum' : num === '1' ? 'Two Sum' : `LeetCode Problem #${num}`;
+      
       setGeneratedQuiz({
         number: num,
-        title: num === '15' ? '3Sum' : num === '1' ? 'Two Sum' : `LeetCode Problem #${num}`,
+        title,
         difficulty: 'Medium',
         description: 'Given an array of integers, return indices or triplets that satisfy algorithmic sum constraints without duplicates.',
-        codeSnippet: `def threeSum(nums: List[int]) -> List[List[int]]:\n    res = set()\n    n = len(nums)\n    for i in range(n):\n        for j in range(i + 1, n):\n            for k in range(j + 1, n):\n                if nums[i] + nums[j] + nums[k] == 0:\n                    res.add(tuple(sorted([nums[i], nums[j], nums[k]])))\n    return list(res)`,
-        questionText: 'What is the primary architectural and algorithmic flaw of utilizing the naive 3-pointer brute force approach shown above?',
-        options: [
-          { id: 0, text: 'It relies on a set() for deduplication, which is structurally invalid in Python for tuple objects.' },
-          { id: 1, text: 'The time complexity is O(N³), making it highly inefficient and prone to Time Limit Exceeded (TLE) errors for large datasets.' },
-          { id: 2, text: 'Sorting the triplet inside the innermost loop alters the original array indices, leading to incorrect sum calculations.' },
-          { id: 3, text: 'It fails to handle edge cases where the input array contains negative numbers.' },
-        ],
-        correctAnswerIndex: 1,
-        hint: '💡 Socratic AI Hint: Consider how sorting the array prior to iteration allows two pointers to converge from opposite ends in O(N²) time instead of nested triple loops.',
-        explanation: 'Sorting the array first allows two-pointer traversal in O(N²) time instead of O(N³) brute force.',
         providerUsed: 'Google Gemini 2.5 (Fallback)',
+        questions: [
+          {
+            id: 1,
+            questionText: `Q1 (Complexity): What is the primary time complexity flaw of utilizing a naive 3-pointer brute force iteration for ${title}?`,
+            options: [
+              { id: 0, text: 'Space complexity is O(N) due to tuple set storage.' },
+              { id: 1, text: 'Time complexity is O(N³), causing Time Limit Exceeded (TLE) on large inputs.' },
+              { id: 2, text: 'Sorting alters original indices causing invalid calculations.' },
+              { id: 3, text: 'Nested loops fail on negative numbers.' },
+            ],
+            correctAnswerIndex: 1,
+            hint: '💡 Socratic Hint: Triple nested loops run in O(N³). Sorting first enables O(N²) two-pointer traversal.',
+            explanation: 'Brute force triple loops execute N*(N-1)*(N-2)/6 iterations, which is O(N³).',
+          },
+          {
+            id: 2,
+            questionText: `Q2 (Pattern Analysis): Which algorithmic pattern allows reducing traversal time from O(N³) to O(N²)?`,
+            options: [
+              { id: 0, text: 'Monotonic Stack traversal.' },
+              { id: 1, text: 'Sorting array + Two-Pointer Convergence.' },
+              { id: 2, text: 'Breadth-First Search on a graph.' },
+              { id: 3, text: 'Dynamic Programming memoization table.' },
+            ],
+            correctAnswerIndex: 1,
+            hint: '💡 Socratic Hint: Sorting allows fixing one element and using left/right pointers to find remaining sum.',
+            explanation: 'Sorting the array lets us fix element i and use two pointers (left and right) to find matching pairs in O(N) per outer loop.',
+          },
+          {
+            id: 3,
+            questionText: `Q3 (Edge Cases): How should duplicate triplets be avoided without consuming extra O(N³) memory?`,
+            options: [
+              { id: 0, text: 'By storing all triplets in a Hash Set.' },
+              { id: 1, text: 'By skipping identical adjacent elements during pointer movement.' },
+              { id: 2, text: 'By clearing the array after every match.' },
+              { id: 3, text: 'By converting all integers to absolute values.' },
+            ],
+            correctAnswerIndex: 1,
+            hint: '💡 Socratic Hint: In a sorted array, duplicate values are adjacent. Skipping `nums[i] == nums[i-1]` eliminates duplicates.',
+            explanation: 'Skipping duplicate adjacent values during traversal prevents duplicate triplets in O(1) auxiliary space.',
+          },
+          {
+            id: 4,
+            questionText: `Q4 (Invariant Tracing): When searching for sum = 0 with sorted nums[i] + nums[left] + nums[right], what action is taken if the sum > 0?`,
+            options: [
+              { id: 0, text: 'Increment left pointer (left++).' },
+              { id: 1, text: 'Decrement right pointer (right--).' },
+              { id: 2, text: 'Break out of the outer loop.' },
+              { id: 3, text: 'Reset left to index 0.' },
+            ],
+            correctAnswerIndex: 1,
+            hint: '💡 Socratic Hint: In a sorted array, moving right pointer to the left decreases the sum.',
+            explanation: 'Since the array is sorted, right-- decreases the total sum towards zero when current sum > 0.',
+          },
+          {
+            id: 5,
+            questionText: `Q5 (Optimization Trade-off): What is the optimal Space Complexity for the 3Sum two-pointer approach?`,
+            options: [
+              { id: 0, text: 'O(N) for recursion call stack.' },
+              { id: 1, text: 'O(1) auxiliary space (excluding result set).' },
+              { id: 2, text: 'O(N²) for hash table lookup.' },
+              { id: 3, text: 'O(log N) memory allocation.' },
+            ],
+            correctAnswerIndex: 1,
+            hint: '💡 Socratic Hint: Two pointers only require two integer variables (left, right).',
+            explanation: 'Two pointers operate directly in-place on the sorted input array, using O(1) auxiliary space.',
+          },
+        ],
       });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleSubmitAnswer = () => {
-    if (selectedOption === null) return;
-    setIsSubmitted(true);
+  const handleSelectOption = (optionId) => {
+    if (submittedQuestions[currentQIndex]) return;
+    setUserAnswers((prev) => ({ ...prev, [currentQIndex]: optionId }));
+  };
+
+  const handleSubmitCurrentAnswer = () => {
+    if (userAnswers[currentQIndex] === undefined) return;
+    setSubmittedQuestions((prev) => ({ ...prev, [currentQIndex]: true }));
+  };
+
+  const currentQ = generatedQuiz?.questions?.[currentQIndex];
+  const isCurrentSubmitted = submittedQuestions[currentQIndex];
+  const currentSelectedOption = userAnswers[currentQIndex];
+
+  // Calculate final score summary
+  const calculateResults = () => {
+    if (!generatedQuiz?.questions) return { correctCount: 0, total: 5, scorePercent: 0, xp: 0 };
+    let correctCount = 0;
+    generatedQuiz.questions.forEach((q, idx) => {
+      if (userAnswers[idx] === q.correctAnswerIndex) {
+        correctCount++;
+      }
+    });
+    const total = generatedQuiz.questions.length;
+    const scorePercent = Math.round((correctCount / total) * 100);
+    const xp = scorePercent * 4; // e.g., 100% = 400 XP
+    return { correctCount, total, scorePercent, xp };
   };
 
   return (
@@ -112,27 +199,23 @@ export default function QuizGenerator({ onGoHome }) {
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                  <span>Generating...</span>
+                  <span>Generating 5 MCQs...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 fill-current" />
-                  <span>Generate Quiz</span>
+                  <span>Generate 5 MCQs</span>
                 </>
               )}
             </button>
           </form>
-
-          {errorMsg && (
-            <p className="text-xs text-rose-400 font-mono mt-3 text-center">{errorMsg}</p>
-          )}
         </div>
 
-        {/* Generated Socratic Quiz Display */}
-        {generatedQuiz && (
+        {/* Generated 5-MCQs Session Display */}
+        {generatedQuiz && !isQuizCompleted && currentQ && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Quiz Top Metadata Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0c0d12] border border-zinc-800 px-6 py-4 rounded-xl gap-3">
+            {/* Quiz Top Stepper Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0c0d12] border border-zinc-800 px-6 py-4 rounded-xl gap-4">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-md">
                   LeetCode #{generatedQuiz.number}
@@ -143,19 +226,42 @@ export default function QuizGenerator({ onGoHome }) {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-mono">
-                <Cpu className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span className="text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 font-bold">
-                  AI: {generatedQuiz.providerUsed}
-                </span>
+              {/* 5-Questions Stepper Pills */}
+              <div className="flex items-center gap-2">
+                {generatedQuiz.questions.map((q, idx) => {
+                  const isDone = submittedQuestions[idx];
+                  const isCurrent = idx === currentQIndex;
+                  const isCorrect = userAnswers[idx] === q.correctAnswerIndex;
+
+                  let pillStyle = 'bg-zinc-800/80 border-zinc-700 text-zinc-400';
+                  if (isDone) {
+                    pillStyle = isCorrect
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold'
+                      : 'bg-rose-500/20 border-rose-500 text-rose-400 font-bold';
+                  } else if (isCurrent) {
+                    pillStyle = 'bg-amber-500 text-black font-extrabold ring-2 ring-amber-400/50';
+                  }
+
+                  return (
+                    <button
+                      key={q.id || idx}
+                      onClick={() => {
+                        setCurrentQIndex(idx);
+                        setShowHint(false);
+                      }}
+                      className={`w-8 h-8 rounded-lg border text-xs font-mono flex items-center justify-center transition-all ${pillStyle}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Main Quiz Grid */}
+            {/* Main Quiz Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* Left Column: Problem Description */}
               <div className="lg:col-span-5 space-y-6">
-                {/* Problem Description */}
                 <div className="bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 space-y-3">
                   <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">
                     Problem Description
@@ -166,28 +272,33 @@ export default function QuizGenerator({ onGoHome }) {
                 </div>
               </div>
 
-              {/* Right Column: Socratic Question & Choice Cards */}
+              {/* Right Column: Active Question & Choice Cards */}
               <div className="lg:col-span-7 space-y-6">
-                {/* Socratic Inquiry Banner */}
+                {/* Socratic Question Banner */}
                 <div className="bg-[#0c0d12] border border-amber-500/40 rounded-2xl p-6 shadow-[0_0_30px_rgba(245,158,11,0.05)] space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 tracking-wider uppercase">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Socratic Question</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 tracking-wider uppercase">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Question {currentQIndex + 1} of 5</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      AI: {generatedQuiz.providerUsed}
+                    </span>
                   </div>
                   <h2 className="text-base font-bold text-white leading-relaxed">
-                    {generatedQuiz.questionText}
+                    {currentQ.questionText}
                   </h2>
                 </div>
 
                 {/* Multiple Choice Options */}
                 <div className="space-y-3">
-                  {generatedQuiz.options.map((opt) => {
-                    const isSelected = selectedOption === opt.id;
-                    const isCorrectAnswer = opt.id === generatedQuiz.correctAnswerIndex;
+                  {currentQ.options.map((opt) => {
+                    const isSelected = currentSelectedOption === opt.id;
+                    const isCorrectAnswer = opt.id === currentQ.correctAnswerIndex;
                     const optionLetters = ['A', 'B', 'C', 'D'];
 
                     let cardStyles = 'bg-[#0c0d12] border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:bg-[#101118]';
-                    if (isSubmitted) {
+                    if (isCurrentSubmitted) {
                       if (isCorrectAnswer) {
                         cardStyles = 'bg-emerald-500/10 border-emerald-500 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]';
                       } else if (isSelected && !isCorrectAnswer) {
@@ -200,14 +311,14 @@ export default function QuizGenerator({ onGoHome }) {
                     return (
                       <div
                         key={opt.id}
-                        onClick={() => !isSubmitted && setSelectedOption(opt.id)}
+                        onClick={() => handleSelectOption(opt.id)}
                         className={`p-4 rounded-xl border transition-all flex items-start gap-4 ${
-                          isSubmitted ? 'cursor-default' : 'cursor-pointer'
+                          isCurrentSubmitted ? 'cursor-default' : 'cursor-pointer'
                         } ${cardStyles}`}
                       >
                         <div
                           className={`w-7 h-7 rounded-lg font-mono font-bold text-xs flex items-center justify-center shrink-0 ${
-                            isSubmitted
+                            isCurrentSubmitted
                               ? isCorrectAnswer
                                 ? 'bg-emerald-500 text-black'
                                 : isSelected
@@ -226,9 +337,8 @@ export default function QuizGenerator({ onGoHome }) {
                   })}
                 </div>
 
-                {/* Submission Feedback & Socratic Hint */}
+                {/* Socratic Hint & Navigation Controls */}
                 <div className="space-y-4 pt-2">
-                  {/* Hint Toggle */}
                   <button
                     onClick={() => setShowHint(!showHint)}
                     className="flex items-center gap-2 text-xs font-mono font-bold text-amber-400 hover:text-amber-300 transition-colors"
@@ -237,51 +347,114 @@ export default function QuizGenerator({ onGoHome }) {
                     <span>{showHint ? 'Hide Socratic Hint' : '💡 Reveal AI Socratic Hint'}</span>
                   </button>
 
-                  {/* Collapsible Socratic Hint Box */}
                   {showHint && (
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs font-mono text-amber-300 leading-relaxed shadow-inner space-y-2">
-                      <p>{generatedQuiz.hint}</p>
-                      {generatedQuiz.explanation && (
+                      <p>{currentQ.hint}</p>
+                      {currentQ.explanation && (
                         <p className="text-zinc-300 font-normal pt-1 border-t border-amber-500/20">
-                          <strong className="text-amber-400">Explanation:</strong> {generatedQuiz.explanation}
+                          <strong className="text-amber-400">Explanation:</strong> {currentQ.explanation}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Submit Answer Action */}
+                  {/* Controls Row */}
                   <div className="flex items-center justify-between pt-2">
-                    {isSubmitted ? (
-                      <div className="flex items-center gap-2 text-xs font-mono font-bold">
-                        {selectedOption === generatedQuiz.correctAnswerIndex ? (
-                          <span className="text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            Correct! Excellent algorithmic intuition.
-                          </span>
-                        ) : (
-                          <span className="text-rose-400 flex items-center gap-1.5 bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/30">
-                            <XCircle className="w-4 h-4 text-rose-400" />
-                            Incorrect. Review the hint above.
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div />
-                    )}
+                    <button
+                      disabled={currentQIndex === 0}
+                      onClick={() => {
+                        setCurrentQIndex((prev) => prev - 1);
+                        setShowHint(false);
+                      }}
+                      className="bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 text-zinc-300 text-xs font-mono font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Previous</span>
+                    </button>
 
-                    {!isSubmitted && (
-                      <button
-                        onClick={handleSubmitAnswer}
-                        disabled={selectedOption === null}
-                        className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-black font-mono uppercase px-8 py-3.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] active:scale-95"
-                      >
-                        <span>Submit Answer</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {!isCurrentSubmitted ? (
+                        <button
+                          onClick={handleSubmitCurrentAnswer}
+                          disabled={currentSelectedOption === undefined}
+                          className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-black font-mono uppercase px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] active:scale-95"
+                        >
+                          <span>Submit Answer</span>
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      ) : currentQIndex < 4 ? (
+                        <button
+                          onClick={() => {
+                            setCurrentQIndex((prev) => prev + 1);
+                            setShowHint(false);
+                          }}
+                          className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-black font-mono uppercase px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(245,158,11,0.25)] active:scale-95"
+                        >
+                          <span>Next Question</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setIsQuizCompleted(true)}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black font-mono uppercase px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(16,185,129,0.25)] active:scale-95"
+                        >
+                          <span>View Final Summary</span>
+                          <Trophy className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Final Quiz Summary Card */}
+        {isQuizCompleted && (
+          <div className="bg-[#0c0d12] border border-amber-500/40 rounded-2xl p-8 shadow-[0_0_50px_rgba(245,158,11,0.15)] text-center space-y-6 animate-in fade-in duration-500">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+              <Trophy className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-black text-white">Quiz Completed!</h2>
+              <p className="text-xs text-zinc-400 mt-1 font-mono">
+                LeetCode #{generatedQuiz?.number} — {generatedQuiz?.title}
+              </p>
+            </div>
+
+            {(() => {
+              const res = calculateResults();
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-xl mx-auto pt-2">
+                  <div className="bg-[#14151c] border border-zinc-800 rounded-xl p-4">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Accuracy</span>
+                    <span className="text-xl font-black text-amber-400">{res.scorePercent}%</span>
+                  </div>
+                  <div className="bg-[#14151c] border border-zinc-800 rounded-xl p-4">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">Score</span>
+                    <span className="text-xl font-black text-white">{res.correctCount} / {res.total}</span>
+                  </div>
+                  <div className="bg-[#14151c] border border-zinc-800 rounded-xl p-4">
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase block mb-1">XP Earned</span>
+                    <span className="text-xl font-black text-emerald-400">+{res.xp} XP</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="pt-4">
+              <button
+                onClick={() => {
+                  setGeneratedQuiz(null);
+                  setIsQuizCompleted(false);
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-black font-mono uppercase px-8 py-3.5 rounded-xl flex items-center gap-2 mx-auto transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-95"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Try Another LeetCode Problem</span>
+              </button>
             </div>
           </div>
         )}
