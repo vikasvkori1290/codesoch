@@ -5,12 +5,21 @@ export async function callGemini(promptText) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is missing');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-  });
+  const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
 
-  const result = await model.generateContent(promptText);
-  const response = await result.response;
-  return response.text();
+  let lastErr = null;
+  for (const modelName of modelsToTry) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { responseMimeType: 'application/json' },
+      });
+      const result = await model.generateContent(promptText);
+      const response = await result.response;
+      return response.text();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Gemini API call failed');
 }
