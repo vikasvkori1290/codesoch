@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { Submission } from '../models/Submission.js';
 import { SpacedRepetition } from '../models/SpacedRepetition.js';
+import { connectDB } from '../config/db.js';
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'thinkquiz_super_secret_jwt_key_2026', {
@@ -15,7 +16,15 @@ const generateToken = (id) => {
 export const memoryUsers = new Map();
 export const memorySubmissions = [];
 
-const isDbConnected = () => mongoose.connection.readyState === 1;
+const isDbConnected = async () => {
+  if (mongoose.connection.readyState === 1) return true;
+  try {
+    await connectDB();
+    return mongoose.connection.readyState === 1;
+  } catch (err) {
+    return false;
+  }
+};
 
 export const registerUser = async (req, res) => {
   const { firstName, lastName, username, email, password, mobile } = req.body;
@@ -25,7 +34,7 @@ export const registerUser = async (req, res) => {
   }
 
   try {
-    if (isDbConnected()) {
+    if (await isDbConnected()) {
       const userExists = await User.findOne({ $or: [{ email }, { username }] });
       if (userExists) {
         return res.status(400).json({ message: 'User with this email or username already exists' });
@@ -116,7 +125,7 @@ export const loginUser = async (req, res) => {
   }
 
   try {
-    if (isDbConnected()) {
+    if (await isDbConnected()) {
       const user = await User.findOne({ email });
       if (user && (await user.matchPassword(password))) {
         return res.json({
@@ -165,7 +174,7 @@ export const loginUser = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    if (isDbConnected()) {
+    if (await isDbConnected()) {
       const user = await User.findById(req.user._id).select('-password');
       if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -241,7 +250,7 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    if (isDbConnected()) {
+    if (await isDbConnected()) {
       const user = await User.findById(req.user._id);
       if (user) {
         user.firstName = req.body.firstName || user.firstName;

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 
+import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
 import quizRoutes from './routes/quizRoutes.js';
 import authRoutes from './routes/authRoutes.js';
@@ -47,6 +48,18 @@ app.use(
 );
 
 app.use(express.json());
+
+// Database connection middleware for serverless cold-start execution
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.warn(`[DB Middleware Warning]: Failed to connect to MongoDB (${err.message}).`);
+    }
+  }
+  next();
+});
 
 // Routes
 app.use('/api/quiz', quizRoutes);

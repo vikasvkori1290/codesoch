@@ -3,6 +3,7 @@ import { Quiz } from '../models/Quiz.js';
 import { Submission } from '../models/Submission.js';
 import { User } from '../models/User.js';
 import { SpacedRepetition } from '../models/SpacedRepetition.js';
+import { connectDB } from '../config/db.js';
 import { aiTrafficController } from '../services/aiTrafficController.js';
 import { fetchLeetCodeProblem, fetchRecentLeetCodeUserProblem } from '../services/leetcodeService.js';
 import { memoryUsers, memorySubmissions } from './authController.js';
@@ -248,6 +249,12 @@ export const recordQuizSubmission = async (req, res) => {
   }
 
   const xpEarned = Math.round((scorePercent || 0) * 4);
+
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {}
+  }
   const isDbConnected = mongoose.connection.readyState === 1;
 
   try {
