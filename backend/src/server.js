@@ -68,6 +68,10 @@ const PORT = process.env.PORT || 5000;
 // Attempt database connection without crashing server if DB offline
 connectDB().catch((err) => console.warn('[MongoDB Warning]: Running without database persistence.'));
 
-app.listen(PORT, () => {
-  console.log(`[ThinkQuiz Backend] Server running on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[ThinkQuiz Backend] Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
