@@ -68,10 +68,44 @@ const LEETCODE_ID_MAP = {
   852: 'peak-index-in-a-mountain-array',
 };
 
-// Helper: Query LeetCode GraphQL API to resolve ANY numeric problem ID (1 to 3300+)
+// Rich algorithmic domain descriptions for problems where LeetCode returns sparse/null GraphQL content
+const PROBLEM_KNOWLEDGE_MAP = {
+  '702': {
+    title: 'Search in a Sorted Array of Unknown Size',
+    difficulty: 'Medium',
+    tags: ['Array', 'Binary Search', 'Interactive'],
+    description: 'Given an integer target and a sorted array of unknown size, search for target using the ArrayReader.get(index) interface which returns 2^31 - 1 (2147483647) when accessing out-of-bounds indices. Solved by first establishing search boundaries using exponential step expansion (1, 2, 4, 8, 16...) until reader.get(right) >= target or out of bounds, followed by binary search within [left, right] range in O(log T) time complexity.'
+  },
+  '704': {
+    title: 'Binary Search',
+    difficulty: 'Easy',
+    tags: ['Array', 'Binary Search'],
+    description: 'Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, return its index; otherwise return -1. Solved using binary search with left and right pointers, calculating mid = left + (right - left) // 2 to prevent integer overflow, achieving O(log N) time and O(1) space.'
+  },
+  '15': {
+    title: '3Sum',
+    difficulty: 'Medium',
+    tags: ['Array', 'Two Pointers', 'Sorting'],
+    description: 'Given an integer array nums, return all unique triplets [nums[i], nums[j], nums[k]] such that i != j != k and nums[i] + nums[j] + nums[k] == 0. Solved by sorting nums first, iterating with a fixed outer index i, and using two pointers (left, right) for the remaining elements, skipping duplicate values for i, left, and right to prevent duplicate triplets in O(N^2) time.'
+  },
+  '49': {
+    title: 'Group Anagrams',
+    difficulty: 'Medium',
+    tags: ['Array', 'Hash Table', 'String', 'Sorting'],
+    description: 'Given an array of strings strs, group the anagrams together. Solved by hashing strings based on a canonical key—either by sorting each string or building a 26-character frequency count tuple—mapping each key to a list of original strings in a Hash Map in O(N * K log K) or O(N * K) time.'
+  },
+  '207': {
+    title: 'Course Schedule',
+    difficulty: 'Medium',
+    tags: ['Depth-First Search', 'Breadth-First Search', 'Graph', 'Topological Sort'],
+    description: 'There are numCourses courses labeled 0 to numCourses - 1. Given prerequisites array where prerequisites[i] = [a, b] means course b must be taken before a. Determine if you can finish all courses. Solved by checking for directed cycles in a graph using Topological Sort (Kahn\'s BFS algorithm with indegrees) or DFS cycle detection using 3-state coloring (Unvisited, Visiting, Visited) in O(V + E) time.'
+  }
+};
+
+// Helper: Query LeetCode GraphQL API to resolve ANY numeric problem ID
 async function resolveSlugFromLeetCodeAPI(cleanInput) {
   if (!/^\d+$/.test(cleanInput)) {
-    return cleanInput; // Already a title slug
+    return cleanInput;
   }
 
   const graphqlQuery = {
@@ -130,7 +164,21 @@ async function resolveSlugFromLeetCodeAPI(cleanInput) {
 export async function fetchLeetCodeProblem(inputQuery) {
   const cleanInput = String(inputQuery).trim().toLowerCase().replace('#', '');
   
-  // 1. Check local cache, otherwise search LeetCode API
+  // 1. Check local knowledge map for curated problem definitions
+  if (PROBLEM_KNOWLEDGE_MAP[cleanInput]) {
+    const k = PROBLEM_KNOWLEDGE_MAP[cleanInput];
+    return {
+      number: cleanInput,
+      title: k.title,
+      slug: k.title.toLowerCase().replace(/ /g, '-'),
+      difficulty: k.difficulty,
+      description: k.description,
+      codeSnippet: `def solution():\n    # Solution for ${k.title}\n    pass`,
+      tags: k.tags,
+    };
+  }
+
+  // 2. Check local cache or search LeetCode API
   let slug = LEETCODE_ID_MAP[cleanInput];
   if (!slug) {
     slug = await resolveSlugFromLeetCodeAPI(cleanInput);
@@ -170,15 +218,21 @@ export async function fetchLeetCodeProblem(inputQuery) {
 
     const question = response.data?.data?.question;
     if (question) {
-      const cleanContent = question.content
+      let cleanContent = question.content
         ? question.content.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim()
-        : `LeetCode problem ${question.title}`;
+        : '';
+
+      const tags = question.topicTags?.map((t) => t.name) || ['Algorithms'];
+
+      // If content from LeetCode GraphQL is empty/null or too short (< 60 chars), enrich it
+      if (!cleanContent || cleanContent.length < 60) {
+        cleanContent = `LeetCode Problem #${question.questionId || cleanInput}: "${question.title}". Category: ${tags.join(', ')}. Focus on optimal data structures, edge cases, time/space trade-offs, and boundary constraints specific to ${question.title}.`;
+      }
 
       const pythonSnippet =
         question.codeSnippets?.find((s) => s.langSlug === 'python3' || s.langSlug === 'python')?.code ||
         `def solution():\n    # Implement solution for ${question.title}\n    pass`;
 
-      // Cache mapping for future lookups
       if (question.questionId && question.titleSlug) {
         LEETCODE_ID_MAP[String(question.questionId)] = question.titleSlug;
       }
@@ -190,7 +244,7 @@ export async function fetchLeetCodeProblem(inputQuery) {
         difficulty: question.difficulty || 'Medium',
         description: cleanContent,
         codeSnippet: pythonSnippet,
-        tags: question.topicTags?.map((t) => t.name) || ['Algorithms'],
+        tags,
       };
     }
   } catch (error) {
@@ -208,7 +262,7 @@ export async function fetchLeetCodeProblem(inputQuery) {
     title: formattedTitle || `LeetCode Problem #${cleanInput}`,
     slug,
     difficulty: 'Medium',
-    description: `Algorithmic constraints, edge cases, and computational bounds for ${formattedTitle || cleanInput}.`,
+    description: `Algorithmic problem constraints, boundary conditions, edge cases, and computational bounds for ${formattedTitle || cleanInput}.`,
     codeSnippet: `def solution():\n    # Solution for ${formattedTitle || cleanInput}\n    pass`,
     tags: ['Algorithms'],
   };

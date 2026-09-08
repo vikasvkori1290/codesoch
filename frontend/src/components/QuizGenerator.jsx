@@ -34,6 +34,7 @@ export default function QuizGenerator({ onGoHome }) {
   const [showHint, setShowHint] = useState(false);
   const [isQuizCompleted, setIsQuizCompleted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showPromptInspector, setShowPromptInspector] = useState(false);
 
   const handleGenerate = async (e) => {
     e?.preventDefault();
@@ -56,304 +57,9 @@ export default function QuizGenerator({ onGoHome }) {
 
       setGeneratedQuiz(response.data);
     } catch (err) {
-      console.warn('[Frontend]: Backend API unreachable or error. Using client fallback 5-MCQs session.', err);
-      
-      const num = problemInput.trim() || '15';
-      const cleanInput = num.toLowerCase().replace('#', '');
-      const isStack = cleanInput.includes('stack') || cleanInput.includes('parentheses') || cleanInput === '20';
-      const isTree = cleanInput.includes('tree') || cleanInput.includes('bst') || cleanInput === '226' || cleanInput === '104';
-      const isDP = cleanInput.includes('climb') || cleanInput.includes('dp') || cleanInput === '70' || cleanInput === '198';
-
-      let title = `LeetCode Problem #${num}`;
-      if (cleanInput === '1' || cleanInput === 'two-sum') title = 'Two Sum';
-      else if (cleanInput === '15' || cleanInput === '3sum') title = '3Sum';
-      else if (cleanInput === '20' || cleanInput === 'valid-parentheses') title = 'Valid Parentheses';
-      else if (cleanInput === '70' || cleanInput === 'climbing-stairs') title = 'Climbing Stairs';
-      else if (cleanInput === '226' || cleanInput === 'invert-binary-tree') title = 'Invert Binary Tree';
-
-      let rawQuestions = [];
-      if (isStack) {
-        rawQuestions = [
-          {
-            id: 1,
-            questionText: `Q1 (Complexity & Pattern): What is the primary advantage of using a Stack (LIFO) over a Queue for solving ${title}?`,
-            options: [
-              'Stack operations allow random access to any depth in O(1) time.',
-              'Stack naturally matches nested structures by matching the most recently opened symbol first.',
-              'Stack guarantees sorted element ordering after every push operation.',
-              'Stack reduces overall Time Complexity from O(N) to O(log N).',
-            ],
-            correctAnswerIndex: 1,
-            hint: '💡 Socratic Hint: Think about LIFO (Last-In, First-Out). Which element must be checked first when closing symbols appear?',
-            explanation: 'A Stack processes the most recent unclosed element first, making it optimal for nested structures in O(N) time and space.',
-          },
-          {
-            id: 2,
-            questionText: `Q2 (Edge Cases): Which boundary condition will break a naive Stack implementation of ${title}?`,
-            options: [
-              'An input string starting with a closing symbol or ending with unclosed opening symbols.',
-              'An input array containing only positive integers.',
-              'Passing duplicate characters into the stack container.',
-              'When input length is an even number.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: What happens if you pop from an empty stack when closing symbols appear first?',
-            explanation: 'Underflow occurs if popping from an empty stack when closing symbols appear first or if opening symbols remain unclosed.',
-          },
-          {
-            id: 3,
-            questionText: `Q3 (Invariant Tracing): In ${title}, what invariant must hold when input iteration completes successfully?`,
-            options: [
-              'The stack must contain exactly 1 element representing the max depth.',
-              'The stack must be completely empty, indicating all items were matched.',
-              'The stack pointers must point to the middle element.',
-              'The top element of the stack must equal zero.',
-            ],
-            correctAnswerIndex: 1,
-            hint: '💡 Socratic Hint: If any element remains in the stack after processing all inputs, what does that imply about balance?',
-            explanation: 'An empty stack at the end guarantees every opened element was properly matched and closed.',
-          },
-          {
-            id: 4,
-            questionText: `Q4 (Optimization): What is the worst-case Space Complexity of the optimal Stack solution for ${title}?`,
-            options: [
-              'O(1) Auxiliary Space regardless of input size.',
-              'O(N) Space in the worst-case when all characters are pushed before popping.',
-              'O(N^2) Space due to stack frame allocations.',
-              'O(log N) Space using binary tree splitting.',
-            ],
-            correctAnswerIndex: 1,
-            hint: '💡 Socratic Hint: If the input consists entirely of unclosed elements, how many items are stored in memory?',
-            explanation: 'Worst-case space is O(N) when all N elements are held in the stack simultaneously.',
-          },
-          {
-            id: 5,
-            questionText: `Q5 (Trade-offs): How can Space Complexity be optimized if input characters are constrained to a single symmetric symbol pair?`,
-            options: [
-              'By using a 2-pointer approach to shrink space to O(1) in-place.',
-              'By maintaining an integer balance counter instead of storing individual characters.',
-              'By sorting the input string alphabetically before processing.',
-              'By using a Hash Map with 100 buckets.',
-            ],
-            correctAnswerIndex: 1,
-            hint: '💡 Socratic Hint: If there is only one type of symbol, do you need to store character values or just count open vs closed?',
-            explanation: 'For a single symbol type, a numeric counter tracking open count achieves O(1) auxiliary space.',
-          },
-        ];
-      } else if (isTree) {
-        rawQuestions = [
-          {
-            id: 1,
-            questionText: `Q1 (Traversal Strategy): When analyzing ${title}, what distinguishes BFS from DFS tree exploration?`,
-            options: [
-              'BFS uses a Queue to process level-by-level, while DFS uses recursion/stack to explore paths to leaf nodes first.',
-              'BFS runs in O(N^2) time while DFS runs in O(N) time.',
-              'DFS requires a sorted Binary Search Tree while BFS works on any tree.',
-              'BFS requires O(1) auxiliary space while DFS requires O(N^2) space.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: Which data structure processes nodes layer by layer vs exploring deep branches first?',
-            explanation: 'BFS utilizes a Queue for level-order traversal, whereas DFS utilizes recursion/stack for deep path exploration.',
-          },
-          {
-            id: 2,
-            questionText: `Q2 (Tree Base Cases): Which base case is mandatory for recursive node traversal in ${title}?`,
-            options: [
-              'If root is null, return base value (e.g. null, 0, or true).',
-              'If node value is negative, throw an exception.',
-              'If node has no left child, stop recursion entirely.',
-              'If tree height exceeds 10, return false.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: What is the termination condition when a recursive call reaches beyond a leaf node?',
-            explanation: 'Checking `if (root === null)` provides the required base case to terminate recursion safely.',
-          },
-          {
-            id: 3,
-            questionText: `Q3 (Complexity Bounds): What is the worst-case Space Complexity for recursive DFS on ${title}?`,
-            options: [
-              'O(1) space always.',
-              'O(H) space where H is tree height, which degenerates to O(N) for a skewed tree.',
-              'O(N^2) space for tree node duplication.',
-              'O(log N) space for any unbalanced tree.',
-            ],
-            correctAnswerIndex: 1,
-            hint: '💡 Socratic Hint: Call stack depth equals the maximum height of the tree. What is height H for a skewed list-like tree?',
-            explanation: 'Recursion call stack memory equals tree height H. In unbalanced skewed trees, H = N, yielding O(N) space.',
-          },
-          {
-            id: 4,
-            questionText: `Q4 (Pointer Swap Invariant): When inverting or transforming binary trees in ${title}, what invariant holds at each node?`,
-            options: [
-              'Recursively swap left and right pointers before or after visiting subtrees.',
-              'Only swap left children if node value is odd.',
-              'Delete right subtrees to enforce single-branch binary trees.',
-              'Convert tree into an array before swapping elements.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: Swapping node.left and node.right at every node mirrors the tree structure.',
-            explanation: 'Swapping left and right pointers recursively at every node produces a mirrored binary tree.',
-          },
-          {
-            id: 5,
-            questionText: `Q5 (Time Complexity): What is the overall Time Complexity of visiting every node once in ${title}?`,
-            options: [
-              'O(N) where N is total number of nodes in the tree.',
-              'O(N log N) from sorting node keys.',
-              'O(N^2) due to nested subtree iterations.',
-              'O(2^N) due to binary branching.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: If every node is visited exactly once, what is the operation count?',
-            explanation: 'Visiting each node once performs constant work O(1) per node, totaling O(N) linear time.',
-          },
-        ];
-      } else if (isDP) {
-        rawQuestions = [
-          {
-            id: 1,
-            questionText: `Q1 (Optimal Substructure): What characteristic in ${title} justifies using Dynamic Programming over brute force recursion?`,
-            options: [
-              'Overlapping subproblems allow memoizing or tabulating previously computed state results.',
-              'The input array is guaranteed to be pre-sorted.',
-              'The problem requires graph cycle detection.',
-              'Decisions must be made randomly.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: Plain recursion re-calculates the same states repeatedly. How does DP optimize this?',
-            explanation: 'Memoizing overlapping subproblems avoids redundant calculations, reducing exponential O(2^N) time to polynomial O(N).',
-          },
-          {
-            id: 2,
-            questionText: `Q2 (State Transition): What represents the state transition recurrence for ${title}?`,
-            options: [
-              'dp[i] = dp[i-1] + dp[i-2], expressing current state using optimal answers of smaller steps.',
-              'dp[i] = dp[i] * 2.',
-              'dp[i] = max(dp[0...i]).',
-              'dp[i] = dp[i-1] - 1.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: To reach step i, you could arrive from step i-1 (1 step) or step i-2 (2 steps). How do options combine?',
-            explanation: 'Current ways dp[i] is the sum of ways to reach previous steps (dp[i-1] + dp[i-2]).',
-          },
-          {
-            id: 3,
-            questionText: `Q3 (Space Optimization): How can memory space for ${title} be optimized from O(N) to O(1)?`,
-            options: [
-              'By keeping only two variables tracking the previous two steps instead of allocating a full DP array.',
-              'By using a 2D matrix filled with zeroes.',
-              'By converting bottom-up DP back to top-down recursion.',
-              'By sorting inputs before running DP.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: If state i only depends on state i-1 and i-2, do you need the full array?',
-            explanation: 'Since state i only references two prior variables, rolling variables reduce space complexity to O(1).',
-          },
-          {
-            id: 4,
-            questionText: `Q4 (Base Cases): Which base cases must be initialized for ${title}?`,
-            options: [
-              'dp[1] = 1 and dp[2] = 2 representing baseline small steps.',
-              'dp[0] = -1.',
-              'dp[N] = infinity.',
-              'Base cases are unnecessary for iterative DP.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: What are the base values for n=1 and n=2 before launching the iteration loop?',
-            explanation: 'Initializing dp[1]=1 and dp[2]=2 seeds the bottom-up iteration safely.',
-          },
-          {
-            id: 5,
-            questionText: `Q5 (Time Complexity): What is the Time Complexity of solving ${title} via iterative DP?`,
-            options: [
-              'O(N) linear time.',
-              'O(2^N) exponential time.',
-              'O(N^2) quadratic time.',
-              'O(log N) logarithmic time.',
-            ],
-            correctAnswerIndex: 0,
-            hint: '💡 Socratic Hint: A single loop runs from 3 up to N. What is the operation count?',
-            explanation: 'Iterating N times with O(1) state transitions achieves O(N) linear time.',
-          },
-        ];
-      } else {
-        rawQuestions = [
-          {
-            id: 1,
-            questionText: `Q1 (Time-Space Trade-off): What is the primary efficiency gain of using a Hash Map for ${title}?`,
-            options: [
-              'Trading O(N) space complexity to achieve O(1) average lookups, reducing total time from O(N^2) to O(N).',
-              'Reducing space complexity to O(1) while maintaining O(N^2) time.',
-              'Automatically keeping input elements in sorted numerical order.',
-              'Eliminating the need for iteration or key checking.',
-            ],
-            correctAnswerIndex: 0,
-            hint: `💡 Socratic Hint: Instead of scanning the rest of the array with nested loops O(N^2), what is the lookup cost in a Hash Map?`,
-            explanation: `Hash tables store visited items for O(1) average lookup, replacing brute force nested loops O(N^2) with O(N) time.`,
-          },
-          {
-            id: 2,
-            questionText: `Q2 (Pattern Selection): When is Two Pointers preferable over a Hash Table for array problem ${title}?`,
-            options: [
-              'When the input array is already sorted (or can be sorted), allowing O(1) auxiliary space traversal.',
-              'When we need O(1) lookup speed without mutating array order.',
-              'When elements are non-numeric strings.',
-              'When duplicate values are explicitly disallowed.',
-            ],
-            correctAnswerIndex: 0,
-            hint: `💡 Socratic Hint: If an array is sorted, how do left and right pointers converge in O(1) extra space?`,
-            explanation: `Sorted arrays enable two-pointer convergent search in O(1) auxiliary space without hash table memory overhead.`,
-          },
-          {
-            id: 3,
-            questionText: `Q3 (Edge Cases): Which critical test case must be handled in ${title}?`,
-            options: [
-              'Inputs containing duplicate numbers, negative target values, or minimal array size (N < 2).',
-              'Arrays containing floating-point numbers.',
-              'Arrays where all elements are positive even numbers.',
-              'Arrays with length equal to a power of 2.',
-            ],
-            correctAnswerIndex: 0,
-            hint: `💡 Socratic Hint: Can an element pair with itself? How does code handle negative targets or duplicate values?`,
-            explanation: `Ensuring elements are not reused and handling duplicates/negative values prevents logic errors on edge cases.`,
-          },
-          {
-            id: 4,
-            questionText: `Q4 (Invariant Tracing): In Hash Map single-pass lookup for ${title}, what is checked before inserting element nums[i]?`,
-            options: [
-              'Check if complement (target - nums[i]) exists in the map; if yes, return indices immediately.',
-              'Check if nums[i] is greater than target value.',
-              'Check if map size exceeds array length.',
-              'Clear the hash map to prevent memory leaks.',
-            ],
-            correctAnswerIndex: 0,
-            hint: `💡 Socratic Hint: If current value is X and goal is Target, what complement value are you looking for in the map?`,
-            explanation: `Searching for target - current in the hash map before insertion prevents using the same index twice.`,
-          },
-          {
-            id: 5,
-            questionText: `Q5 (Hash Collision & Constraints): What happens to Hash Map performance in ${title} during worst-case hash collisions?`,
-            options: [
-              'Lookup degrades from O(1) average time to O(N) worst-case time per operation.',
-              'Space complexity increases from O(N) to O(N^2).',
-              'Array indices become inverted.',
-              'Execution time automatically speeds up.',
-            ],
-            correctAnswerIndex: 0,
-            hint: `💡 Socratic Hint: If all keys hash to the same bucket (bucket collision), what data structure does the bucket degrade to?`,
-            explanation: `Bucket collisions degrade hash lookups to O(N) linear search in worst-case scenarios.`,
-          },
-        ];
-      }
-
-      setGeneratedQuiz({
-        number: num,
-        title,
-        difficulty: 'Medium',
-        description: `Algorithmic problem constraints, edge cases, and computational bounds for ${title}.`,
-        providerUsed: 'Socratic AI Engine',
-        questions: rawQuestions.map(shuffleOptions),
-      });
+      console.error('[QuizGenerator Error]:', err);
+      const errMsg = err.response?.data?.message || err.message || 'AI Model is unable to send back the response. An error occurred.';
+      setErrorMsg(errMsg);
     } finally {
       setIsGenerating(false);
     }
@@ -486,6 +192,51 @@ export default function QuizGenerator({ onGoHome }) {
             </button>
           </form>
         </div>
+
+        {/* Error Alert Card */}
+        {errorMsg && (
+          <div className="bg-rose-500/10 border border-rose-500/40 rounded-2xl p-6 shadow-[0_0_30px_rgba(244,63,94,0.1)] space-y-3">
+            <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
+              <XCircle className="w-5 h-5" />
+              <span>AI Generation Error</span>
+            </div>
+            <p className="text-xs text-rose-200 font-mono leading-relaxed">{errorMsg}</p>
+          </div>
+        )}
+
+        {/* AI Model & Prompt Inspector Card */}
+        {generatedQuiz && (
+          <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-5 shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Cpu className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                  AI Model Info:
+                </span>
+                <span className="text-xs font-mono bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-0.5 rounded-md font-bold">
+                  Provider: {generatedQuiz.providerUsed || 'Google Gemini AI'}
+                </span>
+                <span className="text-xs font-mono bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2.5 py-0.5 rounded-md font-bold">
+                  Model: {generatedQuiz.modelUsed || 'gemini-flash-latest'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPromptInspector(!showPromptInspector)}
+                className="text-xs font-mono text-amber-400 hover:text-amber-300 underline flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+              >
+                <span>{showPromptInspector ? 'Hide Prompt' : '🔍 View Prompt Sent to AI'}</span>
+              </button>
+            </div>
+
+            {showPromptInspector && generatedQuiz.promptSent && (
+              <div className="bg-[#050608] border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto border-l-4 border-l-amber-500">
+                {generatedQuiz.promptSent}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Generated 5-MCQs Session Display */}
         {generatedQuiz && !isQuizCompleted && currentQ && (

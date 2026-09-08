@@ -1,63 +1,53 @@
 import { callGemini } from './geminiProvider.js';
-import { callGroq } from './groqProvider.js';
-import { callOpenAI } from './openaiProvider.js';
+
+function cleanAndParseJSON(rawResponse) {
+  if (typeof rawResponse !== 'string') return rawResponse;
+  let cleaned = rawResponse.trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned);
+}
 
 class AITrafficController {
   constructor() {
     this.providers = [
-      { name: 'Gemini', fn: callGemini, isHealthy: true, rateLimitedUntil: 0 },
-      { name: 'Groq', fn: callGroq, isHealthy: true, rateLimitedUntil: 0 },
-      { name: 'OpenAI', fn: callOpenAI, isHealthy: true, rateLimitedUntil: 0 },
+      { name: 'Google Gemini AI', fn: callGemini, isHealthy: true, rateLimitedUntil: 0 },
     ];
     this.currentIndex = 0;
   }
 
-  getNextProviderIndex() {
-    const now = Date.now();
-    for (let i = 0; i < this.providers.length; i++) {
-      const idx = (this.currentIndex + i) % this.providers.length;
-      const provider = this.providers[idx];
-      // Check if cooldown expired
-      if (!provider.isHealthy && now > provider.rateLimitedUntil) {
-        provider.isHealthy = true;
-      }
-      if (provider.isHealthy) {
-        this.currentIndex = (idx + 1) % this.providers.length;
-        return idx;
-      }
-    }
-    // If all rate limited, force reset and try current
-    return 0;
-  }
-
   async generateSocraticQuiz(promptText) {
-    const attempts = this.providers.length;
-    let lastError = null;
+    const provider = this.providers[0];
 
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      const providerIndex = this.getNextProviderIndex();
-      const provider = this.providers[providerIndex];
+    try {
+      console.log(`[AI Traffic Controller]: Routing request exclusively to '${provider.name}'...`);
+      const rawResult = await provider.fn(promptText);
+      const resText = typeof rawResult === 'string' ? rawResult : rawResult.text;
+      const modelUsed = rawResult.modelName || 'gemini-flash-latest';
 
-      try {
-        console.log(`[AI Traffic Controller]: Dispatching request to Provider '${provider.name}'`);
-        const rawResponse = await provider.fn(promptText);
-        const parsed = JSON.parse(rawResponse);
-        return {
-          providerUsed: provider.name,
-          data: parsed,
-        };
-      } catch (err) {
-        console.warn(`[AI Traffic Controller]: Provider '${provider.name}' failed. Error: ${err.message}`);
-        lastError = err;
+      const parsed = cleanAndParseJSON(resText);
+      const questions = parsed.questions || parsed.data?.questions || parsed.answer?.questions;
 
-        // Mark provider as temporarily rate-limited / unhealthy for 60 seconds
-        provider.isHealthy = false;
-        provider.rateLimitedUntil = Date.now() + 60000;
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        throw new Error(`Gemini Model '${modelUsed}' returned invalid/empty questions array.`);
       }
-    }
 
-    throw new Error(`All 3 AI Providers failed to execute request. Last error: ${lastError?.message}`);
+      console.log(`✨ [AI Traffic Controller]: Successfully parsed 5 questions from Model '${modelUsed}'.`);
+
+      return {
+        providerUsed: provider.name,
+        modelUsed,
+        data: { questions },
+      };
+    } catch (err) {
+      console.error(`❌ [AI Traffic Controller]: Gemini Quiz Generation failed. Error: ${err.message}`);
+      throw new Error(`Gemini AI Model Generation Error: ${err.message}`);
+    }
   }
 }
 
 export const aiTrafficController = new AITrafficController();
+
