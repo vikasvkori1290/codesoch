@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { User, Brain, Sparkles, UserPlus, ArrowRight, LogIn, Zap } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '../config/api.js';
 
 export default function LandingPage({ currentUser, onOpenAuthModal, onOpenQuiz, onOpenProfile }) {
   const [activeProblem, setActiveProblem] = useState(null);
 
   useEffect(() => {
     if (currentUser) {
-      axios.get('http://localhost:5000/api/quiz/active-problem')
+      axios.get(`${API_URL}/quiz/active-problem`)
         .then((res) => {
           if (res.data?.hasActiveProblem) {
             setActiveProblem(res.data);

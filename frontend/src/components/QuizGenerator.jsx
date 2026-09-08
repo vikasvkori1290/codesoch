@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Brain, Search, Sparkles, Lightbulb, ChevronRight, ChevronLeft, CheckCircle2, XCircle, RefreshCw, Cpu, Trophy, RotateCcw } from 'lucide-react';
 import axios from 'axios';
+import { API_URL } from '../config/api.js';
 
 function shuffleOptions(q) {
   const origCorrect = q.correctAnswerIndex ?? 0;
@@ -51,7 +52,7 @@ export default function QuizGenerator({ onGoHome }) {
 
     try {
       // Call Backend API to generate 5 Socratic MCQs
-      const response = await axios.post('http://localhost:5000/api/quiz/generate', {
+      const response = await axios.post(`${API_URL}/quiz/generate`, {
         problemInput: problemInput.trim(),
       });
 
@@ -98,7 +99,7 @@ export default function QuizGenerator({ onGoHome }) {
       const token = localStorage.getItem('thinkquiz_token');
       if (token) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        await axios.post('http://localhost:5000/api/quiz/record-submission', {
+        await axios.post(`${API_URL}/quiz/record-submission`, {
           number: generatedQuiz.number,
           title: generatedQuiz.title,
           scorePercent,

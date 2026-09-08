@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Brain, User, Shield, Flame, Trophy, CheckCircle2, Save, Trash2, Link, Phone, Mail, AlertTriangle, Sparkles, LogOut, Edit3, X, History, Calendar, CheckSquare } from 'lucide-react';
 import axios from 'axios';
 import { getCurrentUser, logoutUser, initAuth } from '../services/auth';
+import { API_URL } from '../config/api.js';
 
 export default function ProfilePage({ onGoHome, onLogout }) {
   const [formData, setFormData] = useState({
@@ -39,7 +40,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
 
   const fetchRealProfile = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/profile');
+      const response = await axios.get(`${API_URL}/auth/profile`);
       const u = response.data.user || response.data;
       const s = response.data.stats || {};
       const h = response.data.history || [];
@@ -104,7 +105,7 @@ export default function ProfilePage({ onGoHome, onLogout }) {
     setSaveSuccess(true);
 
     try {
-      const response = await axios.put('http://localhost:5000/api/auth/profile', formData);
+      const response = await axios.put(`${API_URL}/auth/profile`, formData);
       const u = response.data.user || response.data;
       const s = response.data.stats || {};
 
